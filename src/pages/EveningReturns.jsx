@@ -1,157 +1,217 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { ClipboardCheck } from 'lucide-react';
+import { Calculator, CheckSquare, AlertTriangle } from 'lucide-react';
 
 export default function EveningReturns() {
   const [logs, setLogs] = useState([]);
-  const [products, setProducts] = useState({});
-  const [sellers, setSellers] = useState({});
+  const [hawkers, setHawkers] = useState([]);
+  const [products, setProducts] = useState([]);
   
-  const [returnLogId, setReturnLogId] = useState('');
-  const [returnQty, setReturnQty] = useState('');
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [returnData, setReturnData] = useState({
+    returned_qty: 0,
+    cash_collected: 0
+  });
+
+  const fetchData = async () => {
+    try {
+      const [hawkersRes, productsRes, logsRes] = await Promise.all([
+        api.get('/hawkers/'),
+        api.get('/products/'),
+        api.get('/logs/')
+      ]);
+      setHawkers(hawkersRes);
+      setProducts(productsRes);
+      
+      // Filter for logs that haven't been fully processed yet (or just today's logs)
+      // We will show all logs that have dispatched_qty > 0 but haven't collected cash fully maybe.
+      // Let's just show today's logs for simplicity, or any log that has returned_qty == 0
+      const pendingLogs = logsRes.filter(log => log.returned_qty === 0 && log.cash_collected === 0);
+      setLogs(pendingLogs);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      const [l, p, s] = await Promise.all([
-        api.get('/logs/'),
-        api.get('/products/'),
-        api.get('/sellers/')
-      ]);
-      setLogs(l);
-      
-      const productLookup = {};
-      p.forEach(x => productLookup[x.id] = x);
-      setProducts(productLookup);
-      
-      const sellerLookup = {};
-      s.forEach(x => sellerLookup[x.id] = x.name);
-      setSellers(sellerLookup);
-    } catch (e) { console.error(e); }
+  const handleSelectLog = (log) => {
+    setSelectedLog(log);
+    setReturnData({
+      returned_qty: 0,
+      cash_collected: 0
+    });
   };
 
-  const handleReturn = async (e) => {
+  const handleProcessReturn = async (e) => {
     e.preventDefault();
-    await api.put(`/returns/${returnLogId}`, { returned_qty: parseInt(returnQty) });
-    setReturnLogId('');
-    setReturnQty('');
-    fetchData();
+    if (!selectedLog) return;
+    
+    try {
+      await api.put(`/returns/${selectedLog.id}`, returnData);
+      setSelectedLog(null);
+      fetchData();
+      alert('Return processed successfully!');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to process return');
+    }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  // Calculations for live preview
+  let soldQty = 0;
+  let grossRev = 0;
+  let hawkerComm = 0;
+  let expectedCash = 0;
+  let outstanding = 0;
   
-  // Active logs (for the dropdown)
-  const activeLogs = logs.filter(l => l.date === today && l.returned_qty === 0 && l.sold_qty === 0);
-  
-  // Completed logs for today (for the summary table)
-  const completedLogs = logs.filter(l => l.date === today && (l.sold_qty > 0 || l.returned_qty > 0));
-
-  // Calculate daily amount sold per seller
-  const sellerTotals = {};
-  completedLogs.forEach(log => {
-    if (!sellerTotals[log.seller_id]) {
-      sellerTotals[log.seller_id] = { name: sellers[log.seller_id], totalSoldQty: 0, totalRevenue: 0, totalPayout: 0 };
+  if (selectedLog) {
+    const product = products.find(p => p.id === selectedLog.product_id);
+    soldQty = selectedLog.dispatched_qty - returnData.returned_qty;
+    if (soldQty < 0) soldQty = 0;
+    
+    if (product) {
+      grossRev = soldQty * product.selling_price;
+      hawkerComm = soldQty * product.commission_rate;
+      expectedCash = grossRev - hawkerComm;
+      outstanding = expectedCash - returnData.cash_collected;
     }
-    sellerTotals[log.seller_id].totalSoldQty += log.sold_qty;
-    sellerTotals[log.seller_id].totalRevenue += log.gross_revenue;
-    sellerTotals[log.seller_id].totalPayout += log.seller_payout;
-  });
-
-  const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  }
 
   return (
-    <div>
-      <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <ClipboardCheck size={28} /> Evening Returns
-      </h1>
+    <div className="fade-in">
+      <div className="page-header">
+        <h1 className="page-title">Evening Returns (Settlement)</h1>
+      </div>
 
-      <div className="leaderboard-grid">
+      <div className="grid-cols-2" style={{ display: 'grid', gap: '2rem' }}>
+        
+        {/* Pending Returns List */}
         <div className="card">
-          <h2 style={{marginBottom: '1rem'}}>Log Return (Reconciliation)</h2>
-          <form onSubmit={handleReturn}>
-            <div className="form-group">
-              <select required value={returnLogId} onChange={e => setReturnLogId(e.target.value)}>
-                <option value="">Select Active Dispatch Log</option>
-                {activeLogs.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {sellers[l.seller_id]} | {products[l.product_id]?.name} | Dispatched: {l.dispatched_qty}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <input type="number" placeholder="Returned Qty" required value={returnQty} onChange={e => setReturnQty(e.target.value)} />
-            </div>
-            <button className="btn" style={{backgroundColor: 'var(--success-color)'}} type="submit">Complete Settlement</button>
-          </form>
+          <h3>Pending Settlements</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            Select a dispatch log to process returns and collect cash.
+          </p>
+          
+          <div style={{ overflowY: 'auto', maxHeight: '600px' }}>
+            {logs.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--success-color)' }}>
+                <CheckSquare size={32} style={{ margin: '0 auto', marginBottom: '1rem' }}/>
+                All hawkers are settled for today!
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {logs.map(log => {
+                  const hawker = hawkers.find(h => h.id === log.hawker_id) || { name: `Hawker #${log.hawker_id}` };
+                  const product = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}` };
+                  const isSelected = selectedLog?.id === log.id;
+                  
+                  return (
+                    <div 
+                      key={log.id} 
+                      onClick={() => handleSelectLog(log)}
+                      style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                        padding: '1rem', 
+                        background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.02)', 
+                        border: `1px solid ${isSelected ? 'var(--accent-color)' : 'var(--border-color)'}`, 
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{hawker.name}</div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{product.name} | Date: {log.date}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--warning-color)' }}>
+                        {log.dispatched_qty} Issued
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Process Return Form */}
         <div className="card">
-          <h2 style={{marginBottom: '1rem'}}>Today's Seller Summary</h2>
-          {Object.values(sellerTotals).length === 0 ? (
-            <p style={{color: 'var(--text-secondary)'}}>No returns processed today.</p>
+          <h3>Process Return & Cash</h3>
+          
+          {!selectedLog ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-secondary)', opacity: 0.5 }}>
+              <Calculator size={48} style={{ marginBottom: '1rem' }} />
+              Select a pending settlement from the left.
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {Object.values(sellerTotals).map((s, idx) => (
-                <div key={idx} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.75rem' }}>{s.name}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Total Items Sold: <strong style={{color: 'var(--text-primary)'}}>{s.totalSoldQty}</strong></span>
-                      <span>Total Revenue: <strong style={{color: 'var(--success-color)'}}>{formatter.format(s.totalRevenue)}</strong></span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem' }}>
-                      <span>Commission to Pay: <strong style={{color: 'var(--danger-color)'}}>{formatter.format(s.totalPayout)}</strong></span>
+            <form onSubmit={handleProcessReturn} className="mt-4 fade-in">
+              <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '1.5rem' }}>
+                <strong>Hawker:</strong> {hawkers.find(h => h.id === selectedLog.hawker_id)?.name} <br/>
+                <strong>Product:</strong> {products.find(p => p.id === selectedLog.product_id)?.name} <br/>
+                <strong>Total Issued:</strong> {selectedLog.dispatched_qty} units
+              </div>
+
+              <div className="grid-cols-2" style={{ display: 'grid', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Returned Quantity (Unsold)</label>
+                  <input 
+                    required 
+                    type="number" 
+                    min="0" 
+                    max={selectedLog.dispatched_qty} 
+                    value={returnData.returned_qty} 
+                    onChange={e => setReturnData({...returnData, returned_qty: parseInt(e.target.value) || 0})} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Calculated Sold Quantity</label>
+                  <input type="number" readOnly value={soldQty} style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--info-color)', fontWeight: 'bold' }} />
+                </div>
+                
+                <div className="form-group">
+                  <label>Expected Cash to Collect (₹)</label>
+                  <input type="text" readOnly value={`₹${expectedCash.toFixed(2)}`} style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--warning-color)', fontWeight: 'bold' }} />
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Gross (₹{grossRev.toFixed(2)}) - Comm (₹{hawkerComm.toFixed(2)})
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Actual Cash Collected (₹)</label>
+                  <input 
+                    required 
+                    type="number" 
+                    step="0.01" 
+                    min="0"
+                    value={returnData.cash_collected} 
+                    onChange={e => setReturnData({...returnData, cash_collected: parseFloat(e.target.value) || 0})} 
+                  />
+                </div>
+              </div>
+              
+              {outstanding !== 0 && (
+                <div style={{ padding: '1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-color)', borderRadius: '8px', marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <AlertTriangle color="var(--danger-color)" />
+                  <div>
+                    <div style={{ color: 'var(--danger-color)', fontWeight: 'bold' }}>Outstanding Balance Warning</div>
+                    <div style={{ fontSize: '0.875rem' }}>
+                      {outstanding > 0 
+                        ? `Hawker is short by ₹${outstanding.toFixed(2)}. This will be deducted from their account balance.`
+                        : `Hawker overpaid by ₹${Math.abs(outstanding).toFixed(2)}. This will be added to their account balance as credit.`}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+
+              <button type="submit" className="btn btn-success" style={{ width: '100%', marginTop: '1.5rem', padding: '1rem', fontSize: '1rem' }}>
+                <CheckSquare size={20} /> Complete Settlement
+              </button>
+            </form>
           )}
         </div>
-      </div>
 
-      <div className="card" style={{ marginTop: '2rem', overflowX: 'auto' }}>
-        <h2 style={{marginBottom: '1rem'}}>Return History (Today)</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Seller</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Product</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Dispatched</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Returned</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Sold</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Revenue</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Cost (COGS)</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Commission</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Net Profit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {completedLogs.length === 0 ? (
-              <tr>
-                <td colSpan="9" style={{ padding: '1rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  No returns processed yet.
-                </td>
-              </tr>
-            ) : completedLogs.map(log => (
-              <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem 0.5rem' }}>{sellers[log.seller_id]}</td>
-                <td style={{ padding: '0.75rem 0.5rem' }}>{products[log.product_id]?.name}</td>
-                <td style={{ padding: '0.75rem 0.5rem' }}>{log.dispatched_qty}</td>
-                <td style={{ padding: '0.75rem 0.5rem' }}>{log.returned_qty}</td>
-                <td style={{ padding: '0.75rem 0.5rem', fontWeight: 'bold' }}>{log.sold_qty}</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: 'var(--success-color)' }}>{formatter.format(log.gross_revenue)}</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)' }}>{formatter.format(log.sold_qty * (products[log.product_id]?.base_cost || 0))}</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: 'var(--danger-color)', fontWeight: 'bold' }}>{formatter.format(log.seller_payout)}</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: 'var(--success-color)', fontWeight: 'bold' }}>{formatter.format(log.net_profit)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );
