@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Receipt, Search } from 'lucide-react';
+import { Receipt, Search, Trash2 } from 'lucide-react';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -25,6 +25,18 @@ export default function Expenses() {
   useEffect(() => {
     fetchExpenses();
   }, []);
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this expense entry?")) {
+      try {
+        await api.delete(`/expenses/${id}`);
+        fetchExpenses();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete expense.");
+      }
+    }
+  };
 
   const handleExpense = async (e) => {
     e.preventDefault();
@@ -107,6 +119,7 @@ export default function Expenses() {
                 <th>Category</th>
                 <th>Description</th>
                 <th>Amount</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -116,11 +129,16 @@ export default function Expenses() {
                   <td><span className="badge info">{expense.category}</span></td>
                   <td>{expense.description}</td>
                   <td className="text-danger" style={{ fontWeight: 600 }}>-₹{expense.amount.toFixed(2)}</td>
+                  <td>
+                    <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(expense.id)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {expenses.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                     No expenses logged yet.
                   </td>
                 </tr>

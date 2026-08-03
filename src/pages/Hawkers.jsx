@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Search, Plus, Edit, UserX, UserCheck } from 'lucide-react';
+import { Search, Plus, Edit, UserX, UserCheck, Trash2 } from 'lucide-react';
 
 export default function Hawkers() {
   const [hawkers, setHawkers] = useState([]);
@@ -20,6 +20,18 @@ export default function Hawkers() {
   useEffect(() => {
     fetchHawkers();
   }, []);
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this hawker profile?")) {
+      try {
+        await api.delete(`/hawkers/${id}`);
+        fetchHawkers();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete hawker.");
+      }
+    }
+  };
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -118,6 +130,9 @@ export default function Hawkers() {
                   <td>
                     <button className="btn btn-secondary" style={{ padding: '0.5rem', marginRight: '0.5rem' }} title="Edit">
                       <Edit size={16} />
+                    </button>
+                    <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(hawker.id)}>
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>

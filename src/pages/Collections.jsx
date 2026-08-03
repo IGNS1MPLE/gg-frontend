@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Banknote, Wallet, Search } from 'lucide-react';
+import { Banknote, Wallet, Search, Trash2 } from 'lucide-react';
 
 export default function Collections() {
   const [hawkers, setHawkers] = useState([]);
@@ -32,6 +32,18 @@ export default function Collections() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this payment collection entry?")) {
+      try {
+        await api.delete(`/collections/${id}`);
+        fetchData();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete collection.");
+      }
+    }
+  };
 
   const handleCollection = async (e) => {
     e.preventDefault();
@@ -144,6 +156,7 @@ export default function Collections() {
                   <th>Hawker</th>
                   <th>Amount</th>
                   <th>Method</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,6 +168,11 @@ export default function Collections() {
                       <td>{hawker?.name}</td>
                       <td className="text-success" style={{ fontWeight: 600 }}>+₹{col.amount.toFixed(2)}</td>
                       <td><span className="badge info">{col.payment_method}</span></td>
+                      <td>
+                        <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(col.id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}

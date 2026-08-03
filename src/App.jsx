@@ -54,7 +54,7 @@ function App() {
       <div className="app-container">
         <aside className="sidebar">
           <div className="sidebar-title" style={{lineHeight: '1.2'}}>
-            AntiGravity<br/><span style={{fontSize: '0.875rem', fontWeight: 400, color: 'var(--accent-color)'}}>ERP & POS System</span>
+            hawkerManagement<br/><span style={{fontSize: '0.875rem', fontWeight: 400, color: 'var(--accent-color)'}}>ERP & POS System</span>
           </div>
           
           <nav style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>

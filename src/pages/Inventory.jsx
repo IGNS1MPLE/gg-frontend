@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { PackagePlus, Search } from 'lucide-react';
+import { PackagePlus, Search, Trash2 } from 'lucide-react';
 
 export default function Inventory() {
   const [products, setProducts] = useState([]);
@@ -35,6 +35,18 @@ export default function Inventory() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this purchase entry? This will also revert the added stock.")) {
+      try {
+        await api.delete(`/purchases/${id}`);
+        fetchData();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete purchase record.");
+      }
+    }
+  };
 
   const handlePurchase = async (e) => {
     e.preventDefault();
@@ -111,6 +123,7 @@ export default function Inventory() {
                 <th>Total Cost</th>
                 <th>Supplier</th>
                 <th>Notes</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -124,12 +137,17 @@ export default function Inventory() {
                     <td>₹{purchase.total_cost.toFixed(2)}</td>
                     <td>{purchase.supplier || '-'}</td>
                     <td>{purchase.notes || '-'}</td>
+                    <td>
+                      <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(purchase.id)}>
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
               {purchases.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                     No purchase history found.
                   </td>
                 </tr>
