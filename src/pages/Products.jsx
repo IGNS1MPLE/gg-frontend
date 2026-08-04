@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Search, Plus, Edit, AlertCircle, Trash2 } from 'lucide-react';
+import { Search, Plus, Edit, AlertCircle, Trash2, Calendar, ShieldAlert, Clock } from 'lucide-react';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -9,7 +9,7 @@ export default function Products() {
   const [editingId, setEditingId] = useState(null);
   
   const defaultProduct = {
-    name: '', category: 'General', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10
+    name: '', category: 'General', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10, expiry_date: ''
   };
   
   const [newProduct, setNewProduct] = useState(defaultProduct);
@@ -30,11 +30,16 @@ export default function Products() {
   const handleAddOrEdit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...newProduct,
+        expiry_date: newProduct.expiry_date || null
+      };
+
       if (editingId) {
-        await api.put(`/products/${editingId}`, newProduct);
+        await api.put(`/products/${editingId}`, payload);
         alert('Product updated successfully!');
       } else {
-        await api.post('/products/', newProduct);
+        await api.post('/products/', payload);
         alert('Product added successfully!');
       }
       setShowAddForm(false);
@@ -56,7 +61,8 @@ export default function Products() {
       selling_price: product.selling_price,
       commission_rate: product.commission_rate,
       current_stock: product.current_stock,
-      min_stock_alert: product.min_stock_alert
+      min_stock_alert: product.min_stock_alert,
+      expiry_date: product.expiry_date || ''
     });
     setEditingId(product.id);
     setShowAddForm(true);
@@ -86,6 +92,9 @@ export default function Products() {
     (p.barcode && p.barcode.includes(search))
   );
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -101,11 +110,11 @@ export default function Products() {
           <form onSubmit={handleAddOrEdit} className="mt-4">
             <div className="grid-cols-3" style={{ display: 'grid', gap: '1rem' }}>
               <div className="form-group">
-                <label>Name</label>
+                <label>Name *</label>
                 <input required type="text" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Product Name" />
               </div>
               <div className="form-group">
-                <label>Category</label>
+                <label>Category *</label>
                 <input required type="text" value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} placeholder="e.g. Snacks, Drinks" />
               </div>
               <div className="form-group">
@@ -133,6 +142,12 @@ export default function Products() {
               <div className="form-group">
                 <label>Min Stock Alert</label>
                 <input required type="number" value={newProduct.min_stock_alert} onChange={e => setNewProduct({...newProduct, min_stock_alert: parseInt(e.target.value)})} />
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Calendar size={14} color="var(--warning-color)"/> Expiry Date (Optional)
+                </label>
+                <input type="date" value={newProduct.expiry_date} onChange={e => setNewProduct({...newProduct, expiry_date: e.target.value})} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
@@ -166,44 +181,71 @@ export default function Products() {
                 <th>Cost/Price</th>
                 <th>Comm.</th>
                 <th>Stock</th>
+                <th>Expiry Date</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map(product => (
-                <tr key={product.id}>
-                  <td>#{product.id}</td>
-                  <td style={{ fontWeight: 600 }}>
-                    {product.name}
-                    {product.barcode && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{product.barcode}</div>}
-                  </td>
-                  <td><span className="badge info">{product.category}</span></td>
-                  <td>₹{product.base_cost.toFixed(2)} / ₹{product.selling_price.toFixed(2)}</td>
-                  <td>₹{product.commission_rate.toFixed(2)}</td>
-                  <td style={{ fontWeight: 600 }}>{product.current_stock}</td>
-                  <td>
-                    {product.current_stock <= product.min_stock_alert ? (
-                      <span className="badge danger" style={{ display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
-                        <AlertCircle size={14} /> Low Stock
-                      </span>
-                    ) : (
-                      <span className="badge success">In Stock</span>
-                    )}
-                  </td>
-                  <td>
-                    <button className="btn btn-secondary" style={{ padding: '0.5rem', marginRight: '0.5rem' }} title="Edit" onClick={() => handleEditClick(product)}>
-                      <Edit size={16} />
-                    </button>
-                    <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDeleteClick(product.id)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filteredProducts.map(product => {
+                const hasExpiry = Boolean(product.expiry_date);
+                const isExpired = hasExpiry && product.expiry_date <= todayStr;
+                const isExpiringSoon = hasExpiry && !isExpired && product.expiry_date <= thirtyDaysLater;
+
+                return (
+                  <tr key={product.id}>
+                    <td>#{product.id}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {product.name}
+                      {product.barcode && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{product.barcode}</div>}
+                    </td>
+                    <td><span className="badge info">{product.category}</span></td>
+                    <td>₹{product.base_cost.toFixed(2)} / ₹{product.selling_price.toFixed(2)}</td>
+                    <td>₹{product.commission_rate.toFixed(2)}</td>
+                    <td style={{ fontWeight: 600 }}>{product.current_stock}</td>
+                    <td>
+                      {product.expiry_date ? (
+                        <span style={{ fontSize: '0.85rem' }}>{product.expiry_date}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)' }}>-</span>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {product.current_stock <= product.min_stock_alert && (
+                          <span className="badge danger" style={{ display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
+                            <AlertCircle size={12} /> Low Stock
+                          </span>
+                        )}
+                        {isExpired && (
+                          <span className="badge danger" style={{ display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
+                            <ShieldAlert size={12} /> Expired
+                          </span>
+                        )}
+                        {isExpiringSoon && (
+                          <span className="badge warning" style={{ display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
+                            <Clock size={12} /> Expiring Soon
+                          </span>
+                        )}
+                        {product.current_stock > product.min_stock_alert && !isExpired && !isExpiringSoon && (
+                          <span className="badge success" style={{ width: 'fit-content' }}>In Stock</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <button className="btn btn-secondary" style={{ padding: '0.5rem', marginRight: '0.5rem' }} title="Edit" onClick={() => handleEditClick(product)}>
+                        <Edit size={16} />
+                      </button>
+                      <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDeleteClick(product.id)}>
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                     No products found.
                   </td>
                 </tr>
