@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { 
   TrendingUp, Users, ArrowDown, BarChart2, MapPin, Target,
-  Package, ChevronDown, Eye, Tags, Layers, Banknote, Truck
+  Package, ChevronDown, Eye, Tags, Layers, Banknote, Truck,
+  RotateCcw, ShoppingBag, Receipt
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -12,89 +13,95 @@ import {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [kpis, setKpis] = useState({ 
-    todays_sales: 30506, 
-    profit_today: 250, 
-    active_hawkers: 654, 
-    products_issued_today: 420,
-    average_sales: 235
+    todays_sales: 0, 
+    profit_today: 0, 
+    active_hawkers: 0, 
+    products_issued_today: 0,
+    average_sales: 0
   });
   
   const [topProducts, setTopProducts] = useState([]);
   const [salesTrend, setSalesTrend] = useState([]);
   const [timeFilter, setTimeFilter] = useState('Week');
+  
+  const [lowStockItems, setLowStockItems] = useState([]);
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const getTxDetails = (type) => {
+    switch (type) {
+      case 'Distribution':
+        return { color: '#2563EB', amountColor: '#183833', icon: <Truck size={14} /> };
+      case 'Return':
+        return { color: '#8B5CF6', amountColor: '#10B981', icon: <RotateCcw size={14} /> };
+      case 'Collection':
+        return { color: '#10B981', amountColor: '#10B981', icon: <Banknote size={14} /> };
+      case 'Purchase':
+        return { color: '#F59E0B', amountColor: '#EF4444', icon: <ShoppingBag size={14} /> };
+      case 'Expense':
+        return { color: '#EF4444', amountColor: '#EF4444', icon: <Receipt size={14} /> };
+      default:
+        return { color: '#6B7280', amountColor: '#183833', icon: <Receipt size={14} /> };
+    }
+  };
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const date = new Date();
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
-      const [kpiRes, prodRes, trendRes] = await Promise.all([
-        api.get('/analytics/dashboard-kpis'),
-        api.get(`/analytics/top-products?month=${month}&year=${year}`),
-        api.get('/analytics/sales-trend')
+      const [kpiRes, prodRes, trendRes, lowStockRes, recentTxRes] = await Promise.all([
+        api.get('/analytics/dashboard-kpis').catch(() => null),
+        api.get(`/analytics/top-products?month=${month}&year=${year}`).catch(() => null),
+        api.get('/analytics/sales-trend').catch(() => null),
+        api.get('/analytics/low-stock?limit=5').catch(() => null),
+        api.get('/analytics/recent-transactions?limit=5').catch(() => null)
       ]);
 
       if (kpiRes) {
+        const activeHawkers = kpiRes.active_hawkers || 0;
+        const sales = kpiRes.todays_sales || 0;
+        const avgSales = activeHawkers > 0 ? (sales / activeHawkers) : 0;
         setKpis({
-          todays_sales: kpiRes.todays_sales || 30506,
-          profit_today: kpiRes.profit_today || 250,
-          active_hawkers: kpiRes.active_hawkers || 654,
-          products_issued_today: kpiRes.products_issued_today || 420,
-          average_sales: 235
+          todays_sales: sales,
+          profit_today: kpiRes.profit_today || 0,
+          active_hawkers: activeHawkers,
+          products_issued_today: kpiRes.products_issued_today || 0,
+          average_sales: avgSales
         });
       }
 
-      if (prodRes && prodRes.length > 0) {
+      if (prodRes && Array.isArray(prodRes)) {
         setTopProducts(prodRes);
       } else {
-        // Fallback demo items matching the screenshot format
-        setTopProducts([
-          { id: 1, name: 'Product Alpha', price: 15, sold: 25 },
-          { id: 2, name: 'Product Beta', price: 15, sold: 25 },
-          { id: 3, name: 'Product Gamma', price: 15, sold: 25 },
-          { id: 4, name: 'Product Delta', price: 15, sold: 25 },
-          { id: 5, name: 'Product Epsilon', price: 15, sold: 25 },
-          { id: 6, name: 'Product Zeta', price: 15, sold: 25 },
-          { id: 7, name: 'Product Eta', price: 15, sold: 25 },
-          { id: 8, name: 'Product Theta', price: 15, sold: 25 },
-        ]);
+        setTopProducts([]);
       }
 
-      if (trendRes && trendRes.length > 0) {
+      if (trendRes && Array.isArray(trendRes) && trendRes.length > 0) {
         setSalesTrend(trendRes);
       } else {
-        // Fallback smooth trend matching screenshot line curve
-        setSalesTrend([
-          { name: 'Sun', sales: 18000 },
-          { name: 'Mon', sales: 40000 },
-          { name: 'Tue', sales: 22000 },
-          { name: 'Wed', sales: 25000 },
-          { name: 'Thu', sales: 41000 },
-          { name: 'Fri', sales: 21000 },
-          { name: 'Sat', sales: 48000 }
-        ]);
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        setSalesTrend(days.map(d => ({ name: d, sales: 0 })));
       }
+
+      if (lowStockRes && Array.isArray(lowStockRes)) {
+        setLowStockItems(lowStockRes);
+      } else {
+        setLowStockItems([]);
+      }
+
+      if (recentTxRes && Array.isArray(recentTxRes)) {
+        setRecentTransactions(recentTxRes);
+      } else {
+        setRecentTransactions([]);
+      }
+
     } catch (e) {
-      console.error(e);
-      // Fallback demo trend matching screenshot
-      setSalesTrend([
-        { name: 'Sun', sales: 18000 },
-        { name: 'Mon', sales: 40000 },
-        { name: 'Tue', sales: 22000 },
-        { name: 'Wed', sales: 25000 },
-        { name: 'Thu', sales: 41000 },
-        { name: 'Fri', sales: 21000 },
-        { name: 'Sat', sales: 48000 }
-      ]);
-      setTopProducts([
-        { id: 1, name: 'Product Alpha', price: 15, sold: 25 },
-        { id: 2, name: 'Product Beta', price: 15, sold: 25 },
-        { id: 3, name: 'Product Gamma', price: 15, sold: 25 },
-        { id: 4, name: 'Product Delta', price: 15, sold: 25 },
-        { id: 5, name: 'Product Epsilon', price: 15, sold: 25 },
-        { id: 6, name: 'Product Zeta', price: 15, sold: 25 },
-      ]);
+      console.error("Dashboard fetch error:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -273,7 +280,7 @@ export default function Dashboard() {
 
           {/* List items matching the reference design */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', overflowY: 'auto', maxHeight: '330px' }}>
-            {topProducts.map((p, idx) => (
+            {topProducts.slice(0, 5).map((p, idx) => (
               <div 
                 key={p.id || idx} 
                 style={{ 
@@ -375,6 +382,153 @@ export default function Dashboard() {
           </div>
           <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
             Collections
+          </div>
+        </div>
+
+      </div>
+
+      {/* 4. LOW STOCK ALERTS & RECENT TRANSACTIONS ROW (Placed below quick feature cards) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+        
+        {/* Left Card: LOW STOCK ALERTS */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Low Stock Alerts
+            </div>
+            <button 
+              onClick={() => navigate('/inventory')}
+              style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
+            >
+              View All
+            </button>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', margin: 0, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'none' }}>Product</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center', textTransform: 'none' }}>Current Stock</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center', textTransform: 'none' }}>Min. Stock</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center', textTransform: 'none' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lowStockItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      No low stock items
+                    </td>
+                  </tr>
+                ) : (
+                  lowStockItems.slice(0, 5).map((item, idx) => {
+                    const isCritical = item.current_stock <= (item.min_stock / 2);
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                          {item.name}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                          {item.current_stock}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                          {item.min_stock}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '0.3rem 0.85rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            background: isCritical ? '#FFEBEB' : '#FFF7ED',
+                            color: isCritical ? '#FF4D4D' : '#F59E0B',
+                            display: 'inline-block'
+                          }}>
+                            {isCritical ? 'Critical' : 'Low'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Card: RECENT TRANSACTIONS */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Recent Transactions
+            </div>
+            <button 
+              onClick={() => navigate('/reports')}
+              style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
+            >
+              View All
+            </button>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', margin: 0, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'none' }}>Type</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'none' }}>Reference</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'none' }}>Party</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'none' }}>Amount</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'right', textTransform: 'none' }}>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      No recent transactions
+                    </td>
+                  </tr>
+                ) : (
+                  recentTransactions.slice(0, 5).map((tx, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <div style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            background: tx.color,
+                            color: '#FFFFFF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            {tx.icon}
+                          </div>
+                          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                            {tx.type}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '0.85rem', color: '#2563EB' }}>
+                        {tx.reference}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        {tx.party}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 800, fontSize: '0.85rem', color: tx.amountColor || 'var(--text-primary)' }}>
+                        {tx.amount}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {tx.time}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
