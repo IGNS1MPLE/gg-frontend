@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './api';
 import { 
   LayoutDashboard, 
@@ -22,7 +22,9 @@ import {
   Clock,
   ShieldAlert,
   PlusCircle,
-  X
+  X,
+  Home,
+  Mail
 } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard';
@@ -40,6 +42,7 @@ import UsersRoles from './pages/UsersRoles';
 import SettingsPage from './pages/SettingsPage';
 
 function AppContent() {
+  const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notificationsData, setNotificationsData] = useState({ count: 0, notifications: [] });
@@ -125,11 +128,30 @@ function AppContent() {
     return true;
   });
 
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case '/': return 'Dashboard';
+      case '/hawkers': return 'Hawkers';
+      case '/products': return 'Products';
+      case '/categories': return 'Categories';
+      case '/inventory': return 'Inventory';
+      case '/distribution': return 'Daily Distribution';
+      case '/returns': return 'Evening Returns';
+      case '/collections': return 'Collections';
+      case '/expenses': return 'Expenses';
+      case '/reports': return 'Reports';
+      case '/notifications': return 'Notifications';
+      case '/users': return 'Users & Roles';
+      case '/settings': return 'Settings';
+      default: return 'Dashboard';
+    }
+  };
+
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="sidebar-title" style={{lineHeight: '1.2'}}>
-          hawkerManagement<br/><span style={{fontSize: '0.875rem', fontWeight: 400, color: 'var(--accent-color)'}}>ERP & POS System</span>
+        <div className="sidebar-title">
+          <span className="sidebar-brand-badge">★</span> Test Phase
         </div>
         
         <nav style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
@@ -191,16 +213,22 @@ function AppContent() {
           </NavLink>
         </nav>
 
-        <div style={{ marginTop: 'auto', paddingTop: '2rem', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', opacity: 0.6 }}>
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', opacity: 0.75 }}>
           &copy; {new Date().getFullYear()} All Rights Reserved<br/>Md Nasir Alam
         </div>
       </aside>
       
       <main className="main-content">
         <div className="topbar">
-          <div className="topbar-search">
-            <Search size={18} color="var(--text-secondary)"/>
-            <input type="text" placeholder="Search system modules..." />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            <div className="topbar-breadcrumb">
+              <Home size={15} style={{ marginBottom: '1px' }} /> HOME &gt; <span>{getPageTitle()}</span>
+            </div>
+            
+            <div className="topbar-search">
+              <Search size={16} color="var(--text-secondary)" />
+              <input type="text" placeholder="Search..." />
+            </div>
           </div>
 
           <div className="topbar-actions">
@@ -209,178 +237,90 @@ function AppContent() {
             <button 
               className="btn btn-secondary"
               onClick={() => setShowRequestModal(true)}
-              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
             >
               <PlusCircle size={14} color="var(--accent-color)" /> + Request Product
+            </button>
+
+            {/* Mail Button matching reference */}
+            <button 
+              className="topbar-icon-btn" 
+              title="Product Requests"
+              onClick={() => setShowRequestModal(true)}
+            >
+              <Mail size={18} />
+              <span className="topbar-badge">2</span>
             </button>
             
             {/* Notification Center Bell & Dropdown */}
             <div ref={notifRef} style={{ position: 'relative' }}>
               <button 
+                className="topbar-icon-btn"
                 onClick={() => setShowNotifications(!showNotifications)}
-                style={{
-                  background: 'rgba(255,255,255,0.05)', 
-                  border: '1px solid var(--border-color)', 
-                  color: 'var(--text-primary)', 
-                  cursor: 'pointer', 
-                  position: 'relative', 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  padding: '0.5rem',
-                  borderRadius: '8px'
-                }}
                 title="Notification Center"
               >
                 <Bell size={18} />
                 {notificationsData.count > 0 && (
-                  <span style={{
-                    position: 'absolute', 
-                    top: '-6px', 
-                    right: '-6px', 
-                    background: 'var(--danger-color)', 
-                    color: '#fff',
-                    fontSize: '0.7rem',
-                    fontWeight: 'bold',
-                    padding: '1px 5px',
-                    borderRadius: '10px',
-                    minWidth: '16px',
-                    textAlign: 'center'
-                  }}>
+                  <span className="topbar-badge">
                     {notificationsData.count}
                   </span>
                 )}
               </button>
               
               {showNotifications && (
-                <div className="dropdown-menu" style={{ 
-                  width: '420px', 
-                  maxWidth: 'calc(100vw - 2rem)', 
-                  background: '#18181c', 
-                  border: '1px solid rgba(255, 123, 0, 0.35)', 
-                  borderRadius: '14px', 
-                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.95), 0 0 25px rgba(255, 123, 0, 0.15)', 
-                  padding: 0, 
-                  overflow: 'hidden', 
-                  zIndex: 9999, 
-                  right: 0 
-                }}>
-                  
-                  {/* Notification Center Header */}
-                  <div style={{
-                    padding: '0.9rem 1.1rem', 
-                    background: '#222228', 
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Bell size={16} color="var(--accent-color)" /> Notification Center ({notificationsData.count})
-                    </div>
+                <div className="dropdown-menu" style={{ width: '380px' }}>
+                  <div className="dropdown-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Bell size={16} color="var(--accent-color)" /> Notifications ({notificationsData.count})
+                    </span>
                     <button 
                       onClick={() => navigate('/notifications')} 
-                      style={{ background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
                     >
-                      View All →
+                      View All &rarr;
                     </button>
                   </div>
 
-                  {/* Filter Pills */}
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '0.35rem', 
-                    padding: '0.65rem 0.85rem', 
-                    background: '#141418',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
-                    overflowX: 'auto',
-                    scrollbarWidth: 'none'
-                  }}>
-                    {['ALL', 'STOCK', 'RETURNS', 'EXPIRY', 'ABSENCE', 'REQUESTS'].map(cat => (
-                      <button 
-                        key={cat}
-                        onClick={() => setActiveNotifFilter(cat)}
-                        style={{
-                          background: activeNotifFilter === cat ? 'var(--accent-color)' : 'rgba(255,255,255,0.06)',
-                          color: activeNotifFilter === cat ? '#fff' : 'var(--text-secondary)',
-                          border: 'none',
-                          padding: '0.35rem 0.65rem',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          fontWeight: 600,
-                          fontSize: '0.75rem'
-                        }}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Notifications List */}
-                  <div style={{ maxHeight: '380px', overflowY: 'auto', background: '#18181c' }}>
+                  <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
                     {filteredNotifs.length === 0 ? (
-                      <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        No notifications in this category.
+                      <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        No new notifications.
                       </div>
                     ) : (
                       filteredNotifs.map(n => (
                         <div 
                           key={n.id}
+                          className="notification-item"
                           onClick={() => { setShowNotifications(false); navigate(n.link); }}
-                          style={{
-                            padding: '0.9rem 1.1rem',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s ease',
-                            display: 'flex',
-                            gap: '0.85rem',
-                            alignItems: 'flex-start',
-                            background: '#18181c'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = '#22222a'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = '#18181c'}
+                          style={{ cursor: 'pointer' }}
                         >
-                          <div style={{ marginTop: '2px', flexShrink: 0 }}>
-                            {n.type === 'danger' && <ShieldAlert size={18} color="var(--danger-color)" />}
-                            {n.type === 'warning' && <AlertTriangle size={18} color="var(--warning-color)" />}
-                            {n.type === 'info' && <Clock size={18} color="var(--info-color)" />}
-                            {n.type === 'success' && <PlusCircle size={18} color="var(--success-color)" />}
-                          </div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#ffffff', wordBreak: 'break-word' }}>{n.title}</div>
-                              <span className={`badge ${n.type}`} style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                                {n.category}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: '#a0a0ab', lineHeight: '1.4' }}>
-                              {n.description}
-                            </div>
-                          </div>
+                          <div className="notification-title">{n.title}</div>
+                          <div className="notification-desc">{n.description}</div>
                         </div>
                       ))
                     )}
                   </div>
-
                 </div>
               )}
             </div>
 
-            {/* Profile Icon */}
+            {/* Profile Pill matching reference */}
             <div ref={profileRef} style={{ position: 'relative' }}>
               <div 
+                className="user-profile-pill"
                 onClick={() => setShowProfile(!showProfile)}
-                style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none'}}
               >
-                NA
+                <span className="user-profile-name">Md Nasir</span>
+                <div className="user-avatar-circle">
+                  <User size={18} />
+                </div>
               </div>
 
               {showProfile && (
                 <div className="dropdown-menu">
                   <div className="dropdown-header" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <span style={{ color: 'var(--text-primary)' }}>Md Nasir Alam</span>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 400 }}>Admin User</span>
+                    <span style={{ color: 'var(--text-primary)' }}>Md Nasir</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Admin User</span>
                   </div>
                   <button className="dropdown-item">
                     <User size={16} /> My Profile
@@ -388,7 +328,7 @@ function AppContent() {
                   <button className="dropdown-item" onClick={() => navigate('/settings')}>
                     <Settings size={16} /> Preferences
                   </button>
-                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }}></div>
+                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.4rem 0' }}></div>
                   <button className="dropdown-item" style={{ color: 'var(--danger-color)' }}>
                     <LogOut size={16} /> Sign Out
                   </button>
