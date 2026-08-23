@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { PackagePlus, Search, Trash2, Users, AlertTriangle, Calendar, Plus, Edit, Phone, Mail, MapPin, Check, X, ShieldAlert, Clock, ArrowRight } from 'lucide-react';
+import ProductSearchSelect from '../components/ProductSearchSelect';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function Inventory() {
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'suppliers' | 'expiry'
@@ -233,16 +235,18 @@ export default function Inventory() {
               <form onSubmit={handlePurchase} className="mt-4">
                 <div className="grid-cols-2" style={{ display: 'grid', gap: '1rem' }}>
                   <div className="form-group">
-                    <label>Purchase Date *</label>
-                    <input required type="date" value={newPurchase.date} onChange={e => setNewPurchase({...newPurchase, date: e.target.value})} />
+                    <label>Product (Searchable) *</label>
+                    <ProductSearchSelect
+                      products={products}
+                      value={newPurchase.product_id}
+                      onChange={val => setNewPurchase({...newPurchase, product_id: val})}
+                      placeholder="Search product name, category, or code..."
+                      required
+                    />
                   </div>
                   <div className="form-group">
-                    <label>Product *</label>
-                    <select required value={newPurchase.product_id} onChange={e => setNewPurchase({...newPurchase, product_id: e.target.value})}>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} (Current Stock: {p.current_stock})</option>
-                      ))}
-                    </select>
+                    <label>Purchase Date *</label>
+                    <input required type="date" value={newPurchase.date} onChange={e => setNewPurchase({...newPurchase, date: e.target.value})} />
                   </div>
                   <div className="form-group">
                     <label>Quantity Added *</label>
@@ -254,13 +258,14 @@ export default function Inventory() {
                   </div>
 
                   <div className="form-group">
-                    <label>Supplier (Select Registered or Type Custom)</label>
-                    <select value={newPurchase.supplier_id} onChange={e => setNewPurchase({...newPurchase, supplier_id: e.target.value, supplier: ''})}>
-                      <option value="">-- Select Registered Supplier --</option>
-                      {suppliers.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.contact_person || 'No Contact'})</option>
-                      ))}
-                    </select>
+                    <label>Supplier (Search Registered or Type Custom)</label>
+                    <SearchableSelect
+                      options={suppliers.map(s => ({ value: s.id, label: s.name, sublabel: s.contact_person ? `Contact: ${s.contact_person}` : '' }))}
+                      value={newPurchase.supplier_id}
+                      onChange={val => setNewPurchase({...newPurchase, supplier_id: val, supplier: ''})}
+                      placeholder="-- Select Registered Supplier --"
+                      icon={Users}
+                    />
                     {!newPurchase.supplier_id && (
                       <input 
                         type="text" 

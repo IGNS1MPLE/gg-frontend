@@ -4,27 +4,35 @@ import { Search, Plus, Edit, AlertCircle, Trash2, Calendar, ShieldAlert, Clock }
 
 export default function Products() {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
   const defaultProduct = {
-    name: '', category: 'General', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10, expiry_date: ''
+    name: '', category: '', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10, expiry_date: ''
   };
   
   const [newProduct, setNewProduct] = useState(defaultProduct);
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
-      const data = await api.get('/products/');
-      setProducts(data);
+      const [prodData, catData] = await Promise.all([
+        api.get('/products/'),
+        api.get('/categories/')
+      ]);
+      setProducts(prodData);
+      setCategories(catData);
+      if (catData.length > 0 && !newProduct.category) {
+        setNewProduct(prev => ({ ...prev, category: catData[0].name }));
+      }
     } catch (e) {
       console.error(e);
     }
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
 
   const handleAddOrEdit = async (e) => {
@@ -44,8 +52,8 @@ export default function Products() {
       }
       setShowAddForm(false);
       setEditingId(null);
-      setNewProduct(defaultProduct);
-      fetchProducts();
+      setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General' });
+      fetchData();
     } catch (e) {
       console.error(e);
       alert('Failed to save product');
@@ -72,7 +80,7 @@ export default function Products() {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
         await api.delete(`/products/${id}`);
-        fetchProducts();
+        fetchData();
       } catch (e) {
         console.error(e);
         alert("Failed to delete product.");
@@ -83,7 +91,7 @@ export default function Products() {
   const handleCancel = () => {
     setShowAddForm(false);
     setEditingId(null);
-    setNewProduct(defaultProduct);
+    setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General' });
   };
 
   const filteredProducts = products.filter(p => 
@@ -99,7 +107,11 @@ export default function Products() {
     <div className="fade-in">
       <div className="page-header">
         <h1 className="page-title">Products Catalog</h1>
-        <button className="btn" onClick={() => { setShowAddForm(!showAddForm); setEditingId(null); setNewProduct(defaultProduct); }}>
+        <button className="btn" onClick={() => { 
+          setShowAddForm(!showAddForm); 
+          setEditingId(null); 
+          setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General' }); 
+        }}>
           <Plus size={18} /> Add New Product
         </button>
       </div>
@@ -114,8 +126,22 @@ export default function Products() {
                 <input required type="text" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Product Name" />
               </div>
               <div className="form-group">
-                <label>Category *</label>
-                <input required type="text" value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} placeholder="e.g. Snacks, Drinks" />
+                <label>Category (Select Created) *</label>
+                <select 
+                  required 
+                  value={newProduct.category} 
+                  onChange={e => setNewProduct({...newProduct, category: e.target.value})}
+                >
+                  <option value="" disabled>-- Select Created Category --</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                  {categories.length === 0 && (
+                    <option value="General">General (Default)</option>
+                  )}
+                </select>
               </div>
               <div className="form-group">
                 <label>Barcode/QR</label>

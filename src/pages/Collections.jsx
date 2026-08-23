@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Banknote, Wallet, Search, Trash2 } from 'lucide-react';
+import { Banknote, Wallet, Search, Trash2, User } from 'lucide-react';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function Collections() {
   const [hawkers, setHawkers] = useState([]);
@@ -90,12 +91,19 @@ export default function Collections() {
                 <input required type="date" value={newCollection.date} onChange={e => setNewCollection({...newCollection, date: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Hawker</label>
-                <select required value={newCollection.hawker_id} onChange={e => setNewCollection({...newCollection, hawker_id: parseInt(e.target.value)})}>
-                  {hawkers.map(h => (
-                    <option key={h.id} value={h.id}>{h.name} (Balance: ₹{h.balance.toFixed(2)})</option>
-                  ))}
-                </select>
+                <label>Hawker (Searchable)</label>
+                <SearchableSelect
+                  options={hawkers.map(h => ({ 
+                    value: h.id, 
+                    label: h.name, 
+                    sublabel: h.balance < 0 ? `Owes ₹${Math.abs(h.balance).toFixed(2)}` : (h.balance > 0 ? `Credit ₹${h.balance.toFixed(2)}` : 'Settled')
+                  }))}
+                  value={newCollection.hawker_id}
+                  onChange={(val) => val && setNewCollection({...newCollection, hawker_id: parseInt(val)})}
+                  placeholder="Search or select hawker..."
+                  required
+                  icon={User}
+                />
               </div>
               <div className="form-group">
                 <label>Amount Received (₹)</label>

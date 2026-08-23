@@ -261,44 +261,62 @@ export default function Hawkers() {
 
             <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1rem' }}>
               <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText color="var(--accent-color)" size={20}/> Returns Entries: {selectedHawkerReturnsModal.name}
+                <FileText color="var(--accent-color)" size={20}/> Complete Activity Log: {selectedHawkerReturnsModal.name}
               </h2>
               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Historical log of unsold returns & damaged product entries for this hawker.
+                Historical log of dispatches, unsold returns, damaged products, and cash collections for this hawker.
               </p>
             </div>
 
             <div style={{ overflowY: 'auto', flex: 1 }}>
-              <table>
+              <table style={{ margin: 0, fontSize: '0.85rem' }}>
                 <thead>
-                  <tr>
+                  <tr style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
                     <th>Date</th>
                     <th>Product</th>
-                    <th>Returned Qty</th>
-                    <th>Damaged Qty</th>
-                    <th>Remarks</th>
+                    <th style={{ textAlign: 'center' }}>Issued</th>
+                    <th style={{ textAlign: 'center' }}>Returned</th>
+                    <th style={{ textAlign: 'center' }}>Damaged</th>
+                    <th style={{ textAlign: 'center' }}>Sold</th>
+                    <th style={{ textAlign: 'right' }}>Cash Collected</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hawkerReturnsList.map(log => {
                     const product = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}` };
+                    const isSettled = log.returned_qty > 0 || log.damaged_qty > 0 || log.cash_collected > 0 || log.sold_qty > 0;
+                    
                     return (
                       <tr key={log.id}>
                         <td>{log.date}</td>
                         <td style={{ fontWeight: 600 }}>{product.name}</td>
-                        <td style={{ color: 'var(--info-color)', fontWeight: 600 }}>{log.returned_qty}</td>
-                        <td style={{ color: log.damaged_qty > 0 ? 'var(--danger-color)' : 'var(--text-secondary)', fontWeight: log.damaged_qty > 0 ? 700 : 400 }}>
+                        <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--info-color)' }}>{log.dispatched_qty}</td>
+                        <td style={{ textAlign: 'center', color: 'var(--text-primary)' }}>{log.returned_qty}</td>
+                        <td style={{ textAlign: 'center', color: log.damaged_qty > 0 ? 'var(--coral-red)' : 'var(--text-secondary)', fontWeight: log.damaged_qty > 0 ? 700 : 400 }}>
                           {log.damaged_qty || 0}
                         </td>
-                        <td>{log.remarks || '-'}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--success-color)' }}>
+                          {isSettled ? log.sold_qty : '-'}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                          {isSettled ? `₹${log.cash_collected.toFixed(2)}` : '-'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {isSettled ? (
+                            <span className="badge success" style={{ fontSize: '0.75rem' }}>Settled</span>
+                          ) : (
+                            <span className="badge warning" style={{ fontSize: '0.75rem' }}>Pending</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
 
                   {hawkerReturnsList.length === 0 && (
                     <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-secondary)' }}>
-                        No return entries logged for this hawker yet.
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-secondary)' }}>
+                        No activity log entries found for this hawker yet.
                       </td>
                     </tr>
                   )}
