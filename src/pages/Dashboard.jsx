@@ -21,12 +21,29 @@ export default function Dashboard() {
   });
   
   const [topProducts, setTopProducts] = useState([]);
+  const [topProductsPeriod, setTopProductsPeriod] = useState('week'); // 'week' or 'month'
   const [salesTrend, setSalesTrend] = useState([]);
   const [timeFilter, setTimeFilter] = useState('Week');
   
   const [lowStockItems, setLowStockItems] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchTopProducts = async (period) => {
+    try {
+      const res = await api.get(`/analytics/top-products?period=${period}`);
+      if (res && Array.isArray(res)) {
+        setTopProducts(res);
+      }
+    } catch (e) {
+      console.error("Error fetching top products:", e);
+    }
+  };
+
+  const handlePeriodChange = (period) => {
+    setTopProductsPeriod(period);
+    fetchTopProducts(period);
+  };
 
   const getTxDetails = (type) => {
     switch (type) {
@@ -48,17 +65,14 @@ export default function Dashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const date = new Date();
-      const month = date.getMonth() + 1;
-      const year = date.getFullYear();
-
       const [kpiRes, prodRes, trendRes, lowStockRes, recentTxRes] = await Promise.all([
         api.get('/analytics/dashboard-kpis').catch(() => null),
-        api.get(`/analytics/top-products?month=${month}&year=${year}`).catch(() => null),
+        api.get(`/analytics/top-products?period=${topProductsPeriod}`).catch(() => null),
         api.get('/analytics/sales-trend').catch(() => null),
         api.get('/analytics/low-stock?limit=5').catch(() => null),
         api.get('/analytics/recent-transactions?limit=5').catch(() => null)
       ]);
+
 
       if (kpiRes) {
         const activeHawkers = kpiRes.active_hawkers || 0;
@@ -265,9 +279,40 @@ export default function Dashboard() {
             <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
               Top Selling Products
             </div>
-            <button className="btn-pill-dark" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem' }}>
-              This Week <ChevronDown size={12} />
-            </button>
+            <div style={{ display: 'flex', gap: '0.25rem', background: '#F1F5F9', padding: '0.2rem', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+              <button 
+                onClick={() => handlePeriodChange('week')} 
+                style={{ 
+                  border: 'none', 
+                  borderRadius: '16px', 
+                  padding: '0.25rem 0.65rem', 
+                  fontSize: '0.7rem', 
+                  fontWeight: 700, 
+                  cursor: 'pointer',
+                  background: topProductsPeriod === 'week' ? 'var(--text-primary)' : 'transparent',
+                  color: topProductsPeriod === 'week' ? '#FFFFFF' : 'var(--text-secondary)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                This Week
+              </button>
+              <button 
+                onClick={() => handlePeriodChange('month')} 
+                style={{ 
+                  border: 'none', 
+                  borderRadius: '16px', 
+                  padding: '0.25rem 0.65rem', 
+                  fontSize: '0.7rem', 
+                  fontWeight: 700, 
+                  cursor: 'pointer',
+                  background: topProductsPeriod === 'month' ? 'var(--text-primary)' : 'transparent',
+                  color: topProductsPeriod === 'month' ? '#FFFFFF' : 'var(--text-secondary)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                This Month
+              </button>
+            </div>
           </div>
 
           {/* Table / List Header */}
@@ -280,49 +325,56 @@ export default function Dashboard() {
 
           {/* List items matching the reference design */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', overflowY: 'auto', maxHeight: '330px' }}>
-            {topProducts.slice(0, 5).map((p, idx) => (
-              <div 
-                key={p.id || idx} 
-                style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr', 
-                  alignItems: 'center',
-                  padding: '0.35rem 0',
-                  fontSize: '0.8rem',
-                  fontWeight: 600
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#E0F2F1', color: '#1B3834', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Package size={14} />
-                  </div>
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
-                    {p.name}
-                  </span>
-                </div>
-                
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  ₹{p.price || p.base_cost || 15}
-                </div>
-
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  {p.sold || p.total_sold || 25}
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <button 
-                    className="btn-pill-dark" 
-                    onClick={() => navigate('/products')}
-                    style={{ padding: '0.25rem 0.65rem', fontSize: '0.675rem' }}
-                  >
-                    View Product
-                  </button>
-                </div>
+            {topProducts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)', fontSize: '0.825rem' }}>
+                No sales recorded {topProductsPeriod === 'week' ? 'this week' : 'this month'} yet.
               </div>
-            ))}
+            ) : (
+              topProducts.slice(0, 5).map((p, idx) => (
+                <div 
+                  key={p.id || idx} 
+                  style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr', 
+                    alignItems: 'center',
+                    padding: '0.35rem 0',
+                    fontSize: '0.8rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#E0F2F1', color: '#1B3834', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Package size={14} />
+                    </div>
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                      {p.name}
+                    </span>
+                  </div>
+                  
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    ₹{p.price ?? p.selling_price ?? 0}
+                  </div>
+
+                  <div style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>
+                    {p.sold ?? p.total_sold ?? 0}
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <button 
+                      className="btn-pill-dark" 
+                      onClick={() => navigate('/products')}
+                      style={{ padding: '0.25rem 0.65rem', fontSize: '0.675rem' }}
+                    >
+                      View Product
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
         </div>
+
 
       </div>
 
