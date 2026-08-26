@@ -6,6 +6,7 @@ import {
   Users, 
   Tags,
   Layers,
+  Box,
   Package, 
   Truck, 
   ClipboardCheck, 
@@ -21,13 +22,15 @@ import {
   PlusCircle,
   X,
   Home,
-  Mail
+  Mail,
+  Trash2
 } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard';
 import Hawkers from './pages/Hawkers';
 import Products from './pages/Products';
 import Categories from './pages/Categories';
+import Units from './pages/Units';
 import Inventory from './pages/Inventory';
 import DailyDistribution from './pages/DailyDistribution';
 import EveningReturns from './pages/EveningReturns';
@@ -86,6 +89,27 @@ function AppContent() {
       console.error(e);
     }
   };
+
+  const handleDismissNotification = async (e, notifId) => {
+    e.stopPropagation();
+    try {
+      await api.delete(`/notifications/${notifId}`);
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleClearAllNotifications = async (e) => {
+    e.stopPropagation();
+    try {
+      await api.delete('/notifications/');
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   const fetchHawkers = async () => {
     try {
@@ -195,6 +219,11 @@ function AppContent() {
             <Layers size={18} /> Categories
           </NavLink>
 
+          <NavLink to="/units" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Box size={18} /> Product Units
+          </NavLink>
+
+
           <NavLink to="/inventory" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
             <Package size={18} /> Inventory
           </NavLink>
@@ -299,12 +328,22 @@ function AppContent() {
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Bell size={16} color="var(--accent-color)" /> Notifications ({notificationsData.count})
                     </span>
-                    <button 
-                      onClick={() => navigate('/notifications')} 
-                      style={{ background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
-                    >
-                      View All &rarr;
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                      {notificationsData.count > 0 && (
+                        <button 
+                          onClick={handleClearAllNotifications}
+                          style={{ background: 'none', border: 'none', color: 'var(--danger-color)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                        >
+                          Clear All
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => { setShowNotifications(false); navigate('/notifications'); }} 
+                        style={{ background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
+                      >
+                        View All &rarr;
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
@@ -318,16 +357,28 @@ function AppContent() {
                           key={n.id}
                           className="notification-item"
                           onClick={() => { setShowNotifications(false); navigate(n.link); }}
-                          style={{ cursor: 'pointer' }}
+                          style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}
                         >
-                          <div className="notification-title">{n.title}</div>
-                          <div className="notification-desc">{n.description}</div>
+                          <div style={{ flex: 1 }}>
+                            <div className="notification-title">{n.title}</div>
+                            <div className="notification-desc">{n.description}</div>
+                          </div>
+                          <button
+                            onClick={(e) => handleDismissNotification(e, n.id)}
+                            title="Dismiss"
+                            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.15rem', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger-color)'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       ))
                     )}
                   </div>
                 </div>
               )}
+
             </div>
 
             {/* Profile Pill */}
@@ -370,6 +421,7 @@ function AppContent() {
             <Route path="/hawkers" element={<Hawkers />} />
             <Route path="/products" element={<Products />} />
             <Route path="/categories" element={<Categories />} />
+            <Route path="/units" element={<Units />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/distribution" element={<DailyDistribution />} />
             <Route path="/returns" element={<EveningReturns />} />

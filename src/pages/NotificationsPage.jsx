@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Bell, ShieldAlert, AlertTriangle, Clock, PlusCircle, CheckCircle, Search, Filter } from 'lucide-react';
+import { Bell, ShieldAlert, AlertTriangle, Clock, PlusCircle, CheckCircle, Search, Filter, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function NotificationsPage() {
@@ -22,12 +22,32 @@ export default function NotificationsPage() {
     fetchNotifs();
   }, []);
 
+  const handleDeleteSingle = async (e, notifId) => {
+    e.stopPropagation();
+    try {
+      await api.delete(`/notifications/${notifId}`);
+      fetchNotifs();
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (window.confirm("Are you sure you want to clear all notifications?")) {
+      try {
+        await api.delete('/notifications/');
+        fetchNotifs();
+      } catch (err) {
+        console.error("Failed to clear notifications:", err);
+      }
+    }
+  };
+
   const filteredNotifs = data.notifications.filter(n => {
     const matchesCategory = activeCategory === 'ALL' ||
       (activeCategory === 'STOCK' && n.category.includes('Stock')) ||
       (activeCategory === 'RETURNS' && (n.category.includes('Collection') || n.category.includes('Return'))) ||
       (activeCategory === 'EXPIRY' && n.category.includes('Expiry')) ||
-      (activeCategory === 'ABSENCE' && n.category.includes('Absence')) ||
       (activeCategory === 'REQUESTS' && n.category.includes('Request'));
 
     const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -45,9 +65,16 @@ export default function NotificationsPage() {
             System-wide operational alerts, pending collections, stock alerts, expirations & product requests.
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={() => fetchNotifs()}>
-          <Bell size={18} /> Refresh Alerts ({data.count})
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {data.count > 0 && (
+            <button className="btn btn-secondary" onClick={handleClearAll} style={{ color: 'var(--danger-color)' }}>
+              <Trash2 size={16} /> Clear All
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={() => fetchNotifs()}>
+            <Bell size={18} /> Refresh Alerts ({data.count})
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs & Search Bar */}
@@ -60,7 +87,6 @@ export default function NotificationsPage() {
               { id: 'STOCK', label: '🔔 Low Stock' },
               { id: 'RETURNS', label: '🔔 Pending Collections' },
               { id: 'EXPIRY', label: '🔔 Product Expiry' },
-              { id: 'ABSENCE', label: '🔔 Hawker Absence' },
               { id: 'REQUESTS', label: '🔔 Product Requests' }
             ].map(cat => (
               <button
@@ -131,7 +157,28 @@ export default function NotificationsPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                   <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>{n.title}</h4>
-                  <span className={`badge ${n.type}`}>{n.category}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className={`badge ${n.type}`}>{n.category}</span>
+                    <button
+                      onClick={(e) => handleDeleteSingle(e, n.id)}
+                      title="Delete Notification"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        padding: '0.2rem',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger-color)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                   {n.description}
@@ -139,6 +186,7 @@ export default function NotificationsPage() {
               </div>
             </div>
           ))}
+
 
           {filteredNotifs.length === 0 && (
             <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>

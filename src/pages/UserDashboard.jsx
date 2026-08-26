@@ -26,10 +26,10 @@ export default function UserDashboard({ user }) {
 
         if (kpiRes) {
           setStats({
-            issuedToday: kpiRes.products_issued_today || 18,
-            returnedToday: 4,
-            soldToday: 14,
-            collectedToday: kpiRes.todays_sales || 1450
+            issuedToday: kpiRes.products_issued_today ?? 0,
+            returnedToday: kpiRes.returns_today ?? 0,
+            soldToday: kpiRes.sold_today ?? 0,
+            collectedToday: kpiRes.todays_sales ?? 0
           });
         }
         if (prodRes && Array.isArray(prodRes)) {

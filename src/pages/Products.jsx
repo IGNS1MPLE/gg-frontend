@@ -1,30 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Search, Plus, Edit, AlertCircle, Trash2, Calendar, ShieldAlert, Clock } from 'lucide-react';
+import { Search, Plus, Edit, AlertCircle, Trash2, Calendar, ShieldAlert, Clock, Layers, Box } from 'lucide-react';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [unitsList, setUnitsList] = useState([]);
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
   const defaultProduct = {
-    name: '', category: '', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10, expiry_date: ''
+    name: '', category: '', unit: 'Pcs', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10, expiry_date: ''
   };
   
   const [newProduct, setNewProduct] = useState(defaultProduct);
 
+  const categoryOptions = categories.map(cat => ({
+    value: cat.name,
+    label: cat.name,
+    sublabel: cat.description ? cat.description : null
+  }));
+
+  if (categoryOptions.length === 0) {
+    categoryOptions.push({ value: 'General', label: 'General (Default)' });
+  }
+
+  const unitOptions = unitsList.map(u => ({
+    value: u.name,
+    label: u.name,
+    sublabel: u.description ? u.description : null,
+    badge: u.abbreviation ? u.abbreviation : null
+  }));
+
+  if (unitOptions.length === 0) {
+    unitOptions.push({ value: 'Pcs', label: 'Pcs (Pieces)' });
+  }
+
   const fetchData = async () => {
     try {
-      const [prodData, catData] = await Promise.all([
+      const [prodData, catData, unitData] = await Promise.all([
         api.get('/products/'),
-        api.get('/categories/')
+        api.get('/categories/'),
+        api.get('/units/').catch(() => [])
       ]);
       setProducts(prodData);
       setCategories(catData);
+      if (Array.isArray(unitData)) setUnitsList(unitData);
+
       if (catData.length > 0 && !newProduct.category) {
         setNewProduct(prev => ({ ...prev, category: catData[0].name }));
+      }
+      if (unitData.length > 0 && !newProduct.unit) {
+        setNewProduct(prev => ({ ...prev, unit: unitData[0].name }));
       }
     } catch (e) {
       console.error(e);
@@ -52,7 +81,7 @@ export default function Products() {
       }
       setShowAddForm(false);
       setEditingId(null);
-      setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General' });
+      setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General', unit: unitsList[0]?.name || 'Pcs' });
       fetchData();
     } catch (e) {
       console.error(e);
@@ -64,6 +93,7 @@ export default function Products() {
     setNewProduct({
       name: product.name,
       category: product.category,
+      unit: product.unit || 'Pcs',
       barcode: product.barcode || '',
       base_cost: product.base_cost,
       selling_price: product.selling_price,
@@ -75,6 +105,7 @@ export default function Products() {
     setEditingId(product.id);
     setShowAddForm(true);
   };
+
 
   const handleDeleteClick = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
@@ -127,22 +158,28 @@ export default function Products() {
               </div>
               <div className="form-group">
                 <label>Category (Select Created) *</label>
-                <select 
-                  required 
-                  value={newProduct.category} 
-                  onChange={e => setNewProduct({...newProduct, category: e.target.value})}
-                >
-                  <option value="" disabled>-- Select Created Category --</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))}
-                  {categories.length === 0 && (
-                    <option value="General">General (Default)</option>
-                  )}
-                </select>
+                <SearchableSelect
+                  options={categoryOptions}
+                  value={newProduct.category}
+                  onChange={(val) => setNewProduct({ ...newProduct, category: val })}
+                  placeholder="-- Search or Select Category --"
+                  required={true}
+                  icon={Layers}
+                />
               </div>
+
+              <div className="form-group">
+                <label>Product Unit *</label>
+                <SearchableSelect
+                  options={unitOptions}
+                  value={newProduct.unit}
+                  onChange={(val) => setNewProduct({ ...newProduct, unit: val })}
+                  placeholder="-- Search or Select Unit --"
+                  required={true}
+                  icon={Box}
+                />
+              </div>
+
               <div className="form-group">
                 <label>Barcode/QR</label>
                 <input type="text" value={newProduct.barcode} onChange={e => setNewProduct({...newProduct, barcode: e.target.value})} placeholder="Scan or enter code" />
@@ -190,7 +227,7 @@ export default function Products() {
             <Search size={18} color="var(--text-secondary)" />
             <input 
               type="text" 
-              placeholder="Search products, categories, barcodes..." 
+              placeholder="Search by product name, category, unit, or code..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -204,6 +241,7 @@ export default function Products() {
                 <th>ID</th>
                 <th>Name</th>
                 <th>Category</th>
+                <th>Unit</th>
                 <th>Cost/Price</th>
                 <th>Comm.</th>
                 <th>Stock</th>
@@ -226,9 +264,10 @@ export default function Products() {
                       {product.barcode && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{product.barcode}</div>}
                     </td>
                     <td><span className="badge info">{product.category}</span></td>
+                    <td><span className="badge warning" style={{ background: '#FEF3C7', color: '#92400E' }}>{product.unit || 'Pcs'}</span></td>
                     <td>₹{product.base_cost.toFixed(2)} / ₹{product.selling_price.toFixed(2)}</td>
                     <td>₹{product.commission_rate.toFixed(2)}</td>
-                    <td style={{ fontWeight: 600 }}>{product.current_stock}</td>
+                    <td style={{ fontWeight: 600 }}>{product.current_stock} {product.unit || 'Pcs'}</td>
                     <td>
                       {product.expiry_date ? (
                         <span style={{ fontSize: '0.85rem' }}>{product.expiry_date}</span>

@@ -62,6 +62,30 @@ export default function Dashboard() {
     }
   };
 
+  const renderTrendBadge = (growth) => {
+    const num = Number(growth) || 0;
+    if (num > 0) {
+      return <div className="trend-badge up">+{num}%</div>;
+    } else if (num < 0) {
+      return <div className="trend-badge down">{num}%</div>;
+    } else {
+      return (
+        <div 
+          style={{ 
+            background: '#F1F5F9', 
+            color: '#64748B', 
+            borderRadius: '9999px', 
+            padding: '0.2rem 0.65rem', 
+            fontSize: '0.725rem', 
+            fontWeight: 700 
+          }}
+        >
+          0%
+        </div>
+      );
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -73,7 +97,6 @@ export default function Dashboard() {
         api.get('/analytics/recent-transactions?limit=5').catch(() => null)
       ]);
 
-
       if (kpiRes) {
         const activeHawkers = kpiRes.active_hawkers || 0;
         const sales = kpiRes.todays_sales || 0;
@@ -83,7 +106,11 @@ export default function Dashboard() {
           profit_today: kpiRes.profit_today || 0,
           active_hawkers: activeHawkers,
           products_issued_today: kpiRes.products_issued_today || 0,
-          average_sales: avgSales
+          average_sales: avgSales,
+          sales_growth: kpiRes.sales_growth ?? 0,
+          orders_growth: kpiRes.orders_growth ?? 0,
+          hawkers_growth: kpiRes.hawkers_growth ?? 0,
+          avg_sales_growth: kpiRes.avg_sales_growth ?? 0
         });
       }
 
@@ -141,9 +168,7 @@ export default function Dashboard() {
               Customers
             </div>
           </div>
-          <div className="trend-badge up">
-            +12%
-          </div>
+          {renderTrendBadge(kpis.hawkers_growth)}
         </div>
 
         {/* Metric 2: Orders / Issued Units */}
@@ -156,9 +181,7 @@ export default function Dashboard() {
               Orders
             </div>
           </div>
-          <div className="trend-badge down">
-            -2.02%
-          </div>
+          {renderTrendBadge(kpis.orders_growth)}
         </div>
 
         {/* Metric 3: Revenue / Today's Sales */}
@@ -171,9 +194,7 @@ export default function Dashboard() {
               Revenue
             </div>
           </div>
-          <div className="trend-badge up">
-            +13%
-          </div>
+          {renderTrendBadge(kpis.sales_growth)}
         </div>
 
         {/* Metric 4: Average Sales */}
@@ -186,9 +207,7 @@ export default function Dashboard() {
               Average Sales
             </div>
           </div>
-          <div className="trend-badge up">
-            +1.03%
-          </div>
+          {renderTrendBadge(kpis.avg_sales_growth)}
         </div>
 
       </div>
@@ -211,11 +230,12 @@ export default function Dashboard() {
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Sales</div>
                 </div>
                 <div>
-                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(250)}</span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(kpis.average_sales)}</span>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Average Sales</div>
                 </div>
               </div>
             </div>
+
 
             {/* Range Toggle Pill Switcher */}
             <div style={{ 
