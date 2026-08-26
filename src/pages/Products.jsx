@@ -125,11 +125,20 @@ export default function Products() {
     setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General' });
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.category.toLowerCase().includes(search.toLowerCase()) ||
-    (p.barcode && p.barcode.includes(search))
-  );
+  const filteredProducts = [...products]
+    .filter(p => 
+      p.name.toLowerCase().includes(search.toLowerCase()) || 
+      p.category.toLowerCase().includes(search.toLowerCase()) ||
+      (p.unit && p.unit.toLowerCase().includes(search.toLowerCase())) ||
+      (p.barcode && p.barcode.includes(search))
+    )
+    .sort((a, b) => {
+      if (a.updated_at && b.updated_at) {
+        return new Date(b.updated_at) - new Date(a.updated_at);
+      }
+      return b.id - a.id;
+    });
+
 
   const todayStr = new Date().toISOString().split('T')[0];
   const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
