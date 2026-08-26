@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://recipe-yes-buffalo-stickers.trycloudflare.com';
 
 export const api = {
   get: async (endpoint) => {

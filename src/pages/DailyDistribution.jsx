@@ -198,6 +198,59 @@ export default function DailyDistribution() {
   const cartTotalUnits = cart.reduce((sum, i) => sum + i.qty, 0);
   const cartGrandTotal = cart.reduce((sum, i) => sum + i.totalValue, 0);
 
+  // Group today's logs by Hawker for Today's Issued Slips card
+  const todaysHawkerIds = Array.from(new Set(logs.map(l => l.hawker_id)));
+
+  const todaysGroupedHawkerSlips = todaysHawkerIds.map(hId => {
+    const hawkerLogs = logs.filter(l => l.hawker_id === hId);
+    const hawker = hawkers.find(h => h.id === hId) || { name: `Hawker #${hId}` };
+    const route = hawkerLogs[0]?.route || hawker.route || 'General Route';
+    const date = hawkerLogs[0]?.date || new Date().toISOString().split('T')[0];
+
+    const items = hawkerLogs.map(l => {
+      const p = products.find(prod => prod.id === l.product_id) || { name: `Product #${l.product_id}`, selling_price: 0, category: 'General' };
+      const price = p.selling_price || 0;
+      return {
+        logId: l.id,
+        product_id: l.product_id,
+        productName: p.name,
+        category: p.category || 'General',
+        unitPrice: price,
+        qty: l.dispatched_qty,
+        totalValue: l.dispatched_qty * price
+      };
+    });
+
+    const totalProducts = items.length;
+    const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
+    const grandTotalValue = items.reduce((sum, item) => sum + item.totalValue, 0);
+
+    const combinedSlipObj = {
+      isCombined: true,
+      date,
+      hawkerName: hawker.name,
+      contactInfo: hawker.contact_info,
+      route,
+      items,
+      totalProducts,
+      totalUnits,
+      grandTotalValue
+    };
+
+    return {
+      hawkerId: hId,
+      hawkerName: hawker.name,
+      contactInfo: hawker.contact_info,
+      route,
+      date,
+      items,
+      totalProducts,
+      totalUnits,
+      grandTotalValue,
+      combinedSlipObj
+    };
+  });
+
   // Build WhatsApp Share Link (Handles both Combined Slips and Single Slips)
   const buildWhatsAppShareLink = (slip) => {
     let textMessage = '';
@@ -476,101 +529,96 @@ _Issued via Inventory Management System_`;
             )}
           </div>
 
-          {/* TODAY'S ISSUED SLIPS LIST */}
+          {/* TODAY'S ISSUED SLIPS LIST (GROUPED BY HAWKER) */}
           <div className="card">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle size={20} color="var(--success-color)" /> Today's Issued Slips ({logs.length})
+              <CheckCircle size={20} color="var(--success-color)" /> Today's Issued Slips ({todaysGroupedHawkerSlips.length} Hawkers)
             </h3>
 
-            <div style={{ overflowY: 'auto', maxHeight: '280px', marginTop: '1rem' }}>
-              {logs.length === 0 ? (
+            <div style={{ overflowY: 'auto', maxHeight: '300px', marginTop: '1rem' }}>
+              {todaysGroupedHawkerSlips.length === 0 ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                   <FileText size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
                   <div>No stock issued today yet.</div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {logs.map(log => {
-                    const hawker = hawkers.find(h => h.id === log.hawker_id) || { name: `Hawker #${log.hawker_id}`, route: log.route };
-                    const product = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}`, selling_price: 0, category: 'General' };
-                    const slipUnitPrice = product.selling_price || 0;
-                    const slipTotalValue = log.dispatched_qty * slipUnitPrice;
-                    const slipRoute = log.route || hawker.route || 'General Route';
-
-                    const slipObj = {
-                      isCombined: false,
-                      logId: log.id,
-                      date: log.date,
-                      hawkerName: hawker.name,
-                      contactInfo: hawker.contact_info,
-                      route: slipRoute,
-                      category: product.category || 'General',
-                      productName: product.name,
-                      unitPrice: slipUnitPrice,
-                      qty: log.dispatched_qty,
-                      totalValue: slipTotalValue
-                    };
-
-                    return (
-                      <div key={log.id} style={{ 
-                        padding: '0.75rem 1rem', 
+                  {todaysGroupedHawkerSlips.map(group => (
+                    <div 
+                      key={group.hawkerId} 
+                      style={{ 
+                        padding: '0.85rem 1rem', 
                         background: 'rgba(255,255,255,0.02)', 
                         border: '1px solid var(--border-color)', 
-                        borderRadius: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{hawker.name}</div>
-                            <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                              <MapPin size={11} color="var(--accent-color)" /> {slipRoute}
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--info-color)' }}>
-                              {log.dispatched_qty} units
-                            </span>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-color)' }}>
-                              ₹{slipTotalValue.toFixed(2)}
-                            </div>
+                        borderRadius: '10px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.975rem', color: 'var(--text-primary)' }}>{group.hawkerName}</div>
+                          <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.1rem' }}>
+                            <MapPin size={11} color="var(--accent-color)" /> {group.route}
                           </div>
                         </div>
-
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                          Product: <strong style={{ color: 'var(--text-primary)' }}>{product.name}</strong> @ ₹{slipUnitPrice.toFixed(2)}/unit
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.775rem', flex: 1 }}
-                            onClick={() => setActiveSlipModal(slipObj)}
-                          >
-                            <FileText size={13} /> View Slip
-                          </button>
-                          <a 
-                            href={buildWhatsAppShareLink(slipObj)} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn" 
-                            style={{ 
-                              padding: '0.3rem 0.6rem', 
-                              fontSize: '0.775rem', 
-                              background: '#25D366', 
-                              color: '#fff',
-                              textDecoration: 'none',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              flex: 1,
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <Share2 size={13} /> WhatsApp
-                          </a>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--info-color)' }}>
+                            {group.totalUnits} units ({group.totalProducts} Items)
+                          </span>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-color)' }}>
+                            ₹{group.grandTotalValue.toFixed(2)}
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Product Chips Preview */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.65rem' }}>
+                        {group.items.map(item => (
+                          <span key={item.logId} style={{ 
+                            fontSize: '0.75rem', 
+                            background: '#F2F9F8', 
+                            color: 'var(--text-primary)', 
+                            padding: '0.15rem 0.5rem', 
+                            borderRadius: '6px', 
+                            border: '1px solid var(--border-color)',
+                            fontWeight: 500
+                          }}>
+                            {item.productName} × {item.qty}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.775rem', flex: 1, fontWeight: 600 }}
+                          onClick={() => setActiveSlipModal(group.combinedSlipObj)}
+                        >
+                          <FileText size={13} /> View Combined Slip
+                        </button>
+                        <a 
+                          href={buildWhatsAppShareLink(group.combinedSlipObj)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="btn" 
+                          style={{ 
+                            padding: '0.35rem 0.65rem', 
+                            fontSize: '0.775rem', 
+                            background: '#25D366', 
+                            color: '#fff',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            flex: 1,
+                            justifyContent: 'center',
+                            fontWeight: 600
+                          }}
+                        >
+                          <Share2 size={13} /> WhatsApp
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

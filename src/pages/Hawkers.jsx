@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Search, Plus, Edit, Trash2, MapPin, Check, X, FileText, RotateCcw } from 'lucide-react';
+import { 
+  Search, Plus, Edit, Trash2, MapPin, Check, X, FileText, 
+  RotateCcw, ChevronDown, ChevronUp, Package, DollarSign, Calendar, 
+  AlertTriangle, ExternalLink, User, CheckCircle 
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Hawkers() {
   const [hawkers, setHawkers] = useState([]);
@@ -11,6 +16,9 @@ export default function Hawkers() {
   const [editingHawker, setEditingHawker] = useState(null);
   const [selectedHawkerReturnsModal, setSelectedHawkerReturnsModal] = useState(null);
   
+  // Accordion Expand State
+  const [expandedHawkerId, setExpandedHawkerId] = useState(null);
+
   const [newHawker, setNewHawker] = useState({ 
     name: '', 
     contact_info: '', 
@@ -75,6 +83,10 @@ export default function Hawkers() {
     }
   };
 
+  const toggleExpandHawker = (hawkerId) => {
+    setExpandedHawkerId(prev => prev === hawkerId ? null : hawkerId);
+  };
+
   const filteredHawkers = hawkers.filter(h => 
     h.name.toLowerCase().includes(search.toLowerCase()) || 
     (h.contact_info && h.contact_info.toLowerCase().includes(search.toLowerCase())) ||
@@ -86,10 +98,17 @@ export default function Hawkers() {
     ? logs.filter(log => log.hawker_id === selectedHawkerReturnsModal.id)
     : [];
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h1 className="page-title">Hawkers Management</h1>
+        <div>
+          <h1 className="page-title">Hawkers Management</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+            Click on any hawker row to expand and view assigned items, daily sales, and account summaries.
+          </p>
+        </div>
         <button className="btn" onClick={() => { setShowAddForm(!showAddForm); setEditingHawker(null); }}>
           <Plus size={18} /> Add New Hawker
         </button>
@@ -169,11 +188,12 @@ export default function Hawkers() {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <table>
+          <table style={{ margin: 0 }}>
             <thead>
               <tr>
+                <th style={{ width: '40px' }}></th>
                 <th>ID</th>
-                <th>Name</th>
+                <th>Name (Click to Expand)</th>
                 <th>Contact Info</th>
                 <th>Route Assignment</th>
                 <th>Status</th>
@@ -182,52 +202,247 @@ export default function Hawkers() {
               </tr>
             </thead>
             <tbody>
-              {filteredHawkers.map(hawker => (
-                <tr key={hawker.id}>
-                  <td>#{hawker.id}</td>
-                  <td style={{ fontWeight: 600 }}>{hawker.name}</td>
-                  <td>{hawker.contact_info || '-'}</td>
-                  <td>
-                    {hawker.route ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-primary)' }}>
-                        <MapPin size={14} color="var(--accent-color)" /> {hawker.route}
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Not assigned</span>
-                    )}
-                  </td>
-                  <td>
-                    {hawker.status ? (
-                      <span className="badge success">Active</span>
-                    ) : (
-                      <span className="badge danger">Inactive</span>
-                    )}
-                  </td>
-                  <td className={hawker.balance < 0 ? 'text-danger' : (hawker.balance > 0 ? 'text-success' : '')}>
-                    ₹{hawker.balance.toFixed(2)}
-                  </td>
-                  <td>
-                    <button 
-                      className="btn btn-secondary" 
-                      style={{ padding: '0.4rem 0.6rem', marginRight: '0.5rem', fontSize: '0.8rem' }} 
-                      title="View Returns Entries"
-                      onClick={() => setSelectedHawkerReturnsModal(hawker)}
+              {filteredHawkers.map(hawker => {
+                const isExpanded = expandedHawkerId === hawker.id;
+                
+                // Get all logs for this hawker
+                const allHawkerLogs = logs.filter(l => l.hawker_id === hawker.id);
+                // Today's logs
+                const todayHawkerLogs = allHawkerLogs.filter(l => l.date === todayStr);
+                
+                // Active dispatches (pending returns)
+                const pendingLogs = allHawkerLogs.filter(l => l.returned_qty === 0 && l.damaged_qty === 0 && l.cash_collected === 0 && l.sold_qty === 0);
+
+                // Calculations for expanded panel
+                const totalIssuedUnits = allHawkerLogs.reduce((sum, l) => sum + l.dispatched_qty, 0);
+                const todayIssuedUnits = todayHawkerLogs.reduce((sum, l) => sum + l.dispatched_qty, 0);
+                const todayReturnedUnits = todayHawkerLogs.reduce((sum, l) => sum + l.returned_qty, 0);
+                const todayDamagedUnits = todayHawkerLogs.reduce((sum, l) => sum + l.damaged_qty, 0);
+                const todaySoldUnits = todayHawkerLogs.reduce((sum, l) => sum + l.sold_qty, 0);
+                const todayCashCollected = todayHawkerLogs.reduce((sum, l) => sum + l.cash_collected, 0);
+
+                return (
+                  <React.Fragment key={hawker.id}>
+                    {/* PRIMARY HAWKER ROW */}
+                    <tr 
+                      onClick={() => toggleExpandHawker(hawker.id)}
+                      style={{ 
+                        cursor: 'pointer',
+                        backgroundColor: isExpanded ? 'rgba(45, 212, 191, 0.08)' : 'transparent',
+                        transition: 'background-color 0.2s ease'
+                      }}
                     >
-                      <RotateCcw size={14} style={{ marginRight: '4px' }} /> Returns Log
-                    </button>
-                    <button className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', marginRight: '0.5rem' }} title="Edit" onClick={() => { setEditingHawker(hawker); setShowAddForm(false); }}>
-                      <Edit size={16} />
-                    </button>
-                    <button className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(hawker.id)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      <td style={{ textAlign: 'center', padding: '0.75rem 0.5rem' }}>
+                        {isExpanded ? (
+                          <ChevronUp size={18} color="var(--accent-color)" />
+                        ) : (
+                          <ChevronDown size={18} color="var(--text-secondary)" />
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>#{hawker.id}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                            {hawker.name}
+                          </span>
+                          {todayHawkerLogs.length > 0 && (
+                            <span style={{ 
+                              fontSize: '0.725rem', 
+                              padding: '0.1rem 0.45rem', 
+                              borderRadius: '9999px', 
+                              background: 'var(--accent-pill)', 
+                              color: 'var(--text-primary)',
+                              fontWeight: 700 
+                            }}>
+                              {todayHawkerLogs.length} Issued Today
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>{hawker.contact_info || '-'}</td>
+                      <td>
+                        {hawker.route ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                            <MapPin size={14} color="var(--accent-color)" /> {hawker.route}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Not assigned</span>
+                        )}
+                      </td>
+                      <td>
+                        {hawker.status ? (
+                          <span className="badge success">Active</span>
+                        ) : (
+                          <span className="badge danger">Inactive</span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 800 }} className={hawker.balance < 0 ? 'text-danger' : (hawker.balance > 0 ? 'text-success' : '')}>
+                        ₹{hawker.balance.toFixed(2)}
+                      </td>
+                      <td onClick={e => e.stopPropagation()}>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ padding: '0.4rem 0.65rem', marginRight: '0.5rem', fontSize: '0.8rem', fontWeight: 600 }} 
+                          title="View Complete Activity Log"
+                          onClick={() => setSelectedHawkerReturnsModal(hawker)}
+                        >
+                          <RotateCcw size={14} style={{ marginRight: '4px' }} /> Full History Log
+                        </button>
+                        <button className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', marginRight: '0.5rem' }} title="Edit Profile" onClick={() => { setEditingHawker(hawker); setShowAddForm(false); }}>
+                          <Edit size={16} />
+                        </button>
+                        <button className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(hawker.id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* EXPANDABLE ACCORDION DRAWER PANEL */}
+                    {isExpanded && (
+                      <tr style={{ backgroundColor: '#F4FAFA' }}>
+                        <td colSpan="8" style={{ padding: '1.25rem', borderBottom: '2px solid var(--mint-cyan)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.2s ease-in-out' }}>
+                            
+                            {/* DRAWER HEADER BAR */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              <div>
+                                <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <User size={18} color="var(--accent-color)" /> Detailed Hawker Summary: <strong>{hawker.name}</strong>
+                                </h4>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                                  Route: <strong>{hawker.route || 'Unassigned'}</strong> | Contact: <strong>{hawker.contact_info || 'N/A'}</strong>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <Link to="/distribution" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
+                                  <Package size={14} /> Issue Stock
+                                </Link>
+                                <Link to="/returns" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
+                                  <RotateCcw size={14} /> Process Settlement
+                                </Link>
+                              </div>
+                            </div>
+
+                            {/* KPI STAT CARDS FOR HAWKER */}
+                            <div style={{ 
+                              display: 'grid', 
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', 
+                              gap: '0.75rem',
+                              textAlign: 'center'
+                            }}>
+                              <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Today's Issued</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--info-color)' }}>{todayIssuedUnits} Units</div>
+                              </div>
+
+                              <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Today's Returned</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{todayReturnedUnits} Units</div>
+                              </div>
+
+                              <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--coral-red)', fontWeight: 600 }}>Today's Damaged</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--coral-red)' }}>{todayDamagedUnits} Units</div>
+                              </div>
+
+                              <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--success-color)', fontWeight: 600 }}>Today's Sold</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success-color)' }}>{todaySoldUnits} Units</div>
+                              </div>
+
+                              <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Today's Cash</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success-color)' }}>₹{todayCashCollected.toFixed(2)}</div>
+                              </div>
+
+                              <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Account Balance</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: hawker.balance < 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
+                                  ₹{hawker.balance.toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* ASSIGNED PRODUCTS ITEMIZATION TABLE */}
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Package size={15} color="var(--accent-color)" /> Currently Assigned & Active Products ({allHawkerLogs.length} Records):
+                              </div>
+
+                              {allHawkerLogs.length === 0 ? (
+                                <div style={{ padding: '1.25rem', background: '#FFFFFF', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                  No product dispatches logged for this hawker yet.
+                                </div>
+                              ) : (
+                                <div style={{ overflowX: 'auto', background: '#FFFFFF', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                  <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse', margin: 0 }}>
+                                    <thead>
+                                      <tr style={{ background: '#F2F9F8', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                                        <th style={{ padding: '0.5rem' }}>Date</th>
+                                        <th style={{ padding: '0.5rem' }}>Product Name</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Issued Qty</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Returned Qty</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Damaged Qty</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Sold Qty</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Unit Price</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Total Value</th>
+                                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Status</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {allHawkerLogs.map(log => {
+                                        const prod = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}`, selling_price: 0, category: 'General' };
+                                        const isSettled = log.returned_qty > 0 || log.damaged_qty > 0 || log.cash_collected > 0 || log.sold_qty > 0;
+                                        const unitPrice = prod.selling_price || 0;
+                                        const totalLineVal = log.dispatched_qty * unitPrice;
+
+                                        return (
+                                          <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ padding: '0.5rem' }}>{log.date}</td>
+                                            <td style={{ padding: '0.5rem', fontWeight: 600 }}>
+                                              {prod.name} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({prod.category || 'General'})</span>
+                                            </td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 700, color: 'var(--info-color)' }}>
+                                              {log.dispatched_qty}
+                                            </td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>{log.returned_qty}</td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'center', color: log.damaged_qty > 0 ? 'var(--coral-red)' : 'inherit' }}>
+                                              {log.damaged_qty || 0}
+                                            </td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 700, color: 'var(--success-color)' }}>
+                                              {isSettled ? log.sold_qty : '-'}
+                                            </td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'right' }}>₹{unitPrice.toFixed(2)}</td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700 }}>₹{totalLineVal.toFixed(2)}</td>
+                                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                              {isSettled ? (
+                                                <span className="badge success" style={{ fontSize: '0.75rem' }}>Settled</span>
+                                              ) : (
+                                                <span className="badge warning" style={{ fontSize: '0.75rem' }}>Pending Return</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+
               {filteredHawkers.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                    No hawkers found.
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-secondary)' }}>
+                    No hawkers found matching "{search}".
                   </td>
                 </tr>
               )}
@@ -251,7 +466,7 @@ export default function Hawkers() {
           zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card" style={{ maxWidth: '750px', width: '100%', border: '1px solid var(--accent-color)', position: 'relative', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="card" style={{ maxWidth: '850px', width: '100%', border: '1px solid var(--accent-color)', position: 'relative', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
             <button 
               onClick={() => setSelectedHawkerReturnsModal(null)} 
               style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
