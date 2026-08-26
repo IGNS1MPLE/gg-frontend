@@ -150,19 +150,22 @@ export default function Products() {
       {showAddForm && (
         <div className="card" style={{ marginBottom: '2rem' }}>
           <h3>{editingId ? 'Edit Product' : 'Create New Product'}</h3>
-          <form onSubmit={handleAddOrEdit} className="mt-4">
-            <div className="grid-cols-3" style={{ display: 'grid', gap: '1rem' }}>
+          <form onSubmit={handleAddOrEdit} className="mt-4" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            
+            {/* Row 1: Basics (4 Columns) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
               <div className="form-group">
                 <label>Name *</label>
                 <input required type="text" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Product Name" />
               </div>
+
               <div className="form-group">
                 <label>Category (Select Created) *</label>
                 <SearchableSelect
                   options={categoryOptions}
                   value={newProduct.category}
                   onChange={(val) => setNewProduct({ ...newProduct, category: val })}
-                  placeholder="-- Search or Select Category --"
+                  placeholder="-- Select Category --"
                   required={true}
                   icon={Layers}
                 />
@@ -174,7 +177,7 @@ export default function Products() {
                   options={unitOptions}
                   value={newProduct.unit}
                   onChange={(val) => setNewProduct({ ...newProduct, unit: val })}
-                  placeholder="-- Search or Select Unit --"
+                  placeholder="-- Select Unit --"
                   required={true}
                   icon={Box}
                 />
@@ -184,27 +187,33 @@ export default function Products() {
                 <label>Barcode/QR</label>
                 <input type="text" value={newProduct.barcode} onChange={e => setNewProduct({...newProduct, barcode: e.target.value})} placeholder="Scan or enter code" />
               </div>
-              
+            </div>
+
+            {/* Row 2: Pricing & Commission (3 Columns) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
               <div className="form-group">
                 <label>Base Cost (₹)</label>
-                <input required type="number" step="0.01" value={newProduct.base_cost} onChange={e => setNewProduct({...newProduct, base_cost: parseFloat(e.target.value)})} />
+                <input required type="number" step="0.01" value={newProduct.base_cost} onChange={e => setNewProduct({...newProduct, base_cost: parseFloat(e.target.value) || 0})} />
               </div>
               <div className="form-group">
                 <label>Selling Price (₹)</label>
-                <input required type="number" step="0.01" value={newProduct.selling_price} onChange={e => setNewProduct({...newProduct, selling_price: parseFloat(e.target.value)})} />
+                <input required type="number" step="0.01" value={newProduct.selling_price} onChange={e => setNewProduct({...newProduct, selling_price: parseFloat(e.target.value) || 0})} />
               </div>
               <div className="form-group">
                 <label>Hawker Commission (₹)</label>
-                <input required type="number" step="0.01" value={newProduct.commission_rate} onChange={e => setNewProduct({...newProduct, commission_rate: parseFloat(e.target.value)})} />
+                <input required type="number" step="0.01" value={newProduct.commission_rate} onChange={e => setNewProduct({...newProduct, commission_rate: parseFloat(e.target.value) || 0})} />
               </div>
+            </div>
 
+            {/* Row 3: Stock & Expiry (3 Columns) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
               <div className="form-group">
                 <label>Initial Stock</label>
-                <input required type="number" value={newProduct.current_stock} onChange={e => setNewProduct({...newProduct, current_stock: parseInt(e.target.value)})} />
+                <input required type="number" value={newProduct.current_stock} onChange={e => setNewProduct({...newProduct, current_stock: parseInt(e.target.value) || 0})} />
               </div>
               <div className="form-group">
                 <label>Min Stock Alert</label>
-                <input required type="number" value={newProduct.min_stock_alert} onChange={e => setNewProduct({...newProduct, min_stock_alert: parseInt(e.target.value)})} />
+                <input required type="number" value={newProduct.min_stock_alert} onChange={e => setNewProduct({...newProduct, min_stock_alert: parseInt(e.target.value) || 0})} />
               </div>
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -213,13 +222,15 @@ export default function Products() {
                 <input type="date" value={newProduct.expiry_date} onChange={e => setNewProduct({...newProduct, expiry_date: e.target.value})} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
               <button type="submit" className="btn btn-success">{editingId ? 'Update Product' : 'Save Product'}</button>
               <button type="button" className="btn btn-secondary" onClick={handleCancel}>Cancel</button>
             </div>
           </form>
         </div>
       )}
+
 
       <div className="card">
         <div className="filters-panel">
