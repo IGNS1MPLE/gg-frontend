@@ -371,8 +371,9 @@ _Issued via Inventory Management System_`;
                 required 
                 type="number" 
                 min="1" 
+                placeholder="1"
                 value={dispatchData.dispatched_qty} 
-                onChange={e => setDispatchData({...dispatchData, dispatched_qty: parseInt(e.target.value) || 1})} 
+                onChange={e => setDispatchData({...dispatchData, dispatched_qty: e.target.value})} 
               />
             </div>
 

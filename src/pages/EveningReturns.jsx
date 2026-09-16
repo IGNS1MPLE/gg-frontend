@@ -97,7 +97,18 @@ export default function EveningReturns() {
 
   // Update return/damaged for a specific log item in the group
   const handleItemQtyChange = (logId, field, value, maxQty) => {
-    const val = Math.max(0, Math.min(maxQty, parseInt(value) || 0));
+    if (value === '') {
+      setReturnsState(prev => ({
+        ...prev,
+        [logId]: {
+          ...prev[logId],
+          [field]: ''
+        }
+      }));
+      return;
+    }
+    const parsed = parseInt(value);
+    const val = isNaN(parsed) ? '' : Math.max(0, Math.min(maxQty, parsed));
     setReturnsState(prev => ({
       ...prev,
       [logId]: {
@@ -461,8 +472,8 @@ export default function EveningReturns() {
                     <tbody>
                       {selectedHawkerGroup.logs.map(log => {
                         const prod = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}`, selling_price: 0, commission_rate: 0 };
-                        const ret = returnsState[log.id]?.returned_qty || 0;
-                        const dam = returnsState[log.id]?.damaged_qty || 0;
+                        const ret = parseInt(returnsState[log.id]?.returned_qty) || 0;
+                        const dam = parseInt(returnsState[log.id]?.damaged_qty) || 0;
                         const sold = Math.max(0, log.dispatched_qty - ret - dam);
                         const lineExpectedCash = sold * (prod.selling_price - prod.commission_rate);
 
@@ -480,7 +491,8 @@ export default function EveningReturns() {
                                 type="number" 
                                 min="0" 
                                 max={log.dispatched_qty} 
-                                value={returnsState[log.id]?.returned_qty ?? 0}
+                                placeholder="0"
+                                value={returnsState[log.id]?.returned_qty ?? ''}
                                 onChange={e => handleItemQtyChange(log.id, 'returned_qty', e.target.value, log.dispatched_qty)}
                                 style={{ padding: '0.4rem', textAlign: 'center', borderRadius: '8px', fontSize: '0.875rem' }}
                               />
@@ -490,7 +502,8 @@ export default function EveningReturns() {
                                 type="number" 
                                 min="0" 
                                 max={log.dispatched_qty} 
-                                value={returnsState[log.id]?.damaged_qty ?? 0}
+                                placeholder="0"
+                                value={returnsState[log.id]?.damaged_qty ?? ''}
                                 onChange={e => handleItemQtyChange(log.id, 'damaged_qty', e.target.value, log.dispatched_qty)}
                                 style={{ padding: '0.4rem', textAlign: 'center', borderRadius: '8px', fontSize: '0.875rem', color: dam > 0 ? 'var(--coral-red)' : 'inherit', fontWeight: dam > 0 ? 700 : 400 }}
                               />

@@ -12,7 +12,7 @@ export default function Products() {
   const [editingId, setEditingId] = useState(null);
   
   const defaultProduct = {
-    name: '', category: '', unit: 'Pcs', barcode: '', base_cost: 0, selling_price: 0, commission_rate: 0, current_stock: 0, min_stock_alert: 10, expiry_date: ''
+    name: '', category: '', unit: 'Pcs', barcode: '', base_cost: '', selling_price: '', commission_rate: '', current_stock: '', min_stock_alert: '10', expiry_date: ''
   };
   
   const [newProduct, setNewProduct] = useState(defaultProduct);
@@ -69,6 +69,11 @@ export default function Products() {
     try {
       const payload = {
         ...newProduct,
+        base_cost: parseFloat(newProduct.base_cost) || 0,
+        selling_price: parseFloat(newProduct.selling_price) || 0,
+        commission_rate: parseFloat(newProduct.commission_rate) || 0,
+        current_stock: parseInt(newProduct.current_stock) || 0,
+        min_stock_alert: parseInt(newProduct.min_stock_alert) || 0,
         expiry_date: newProduct.expiry_date || null
       };
 
@@ -95,11 +100,11 @@ export default function Products() {
       category: product.category,
       unit: product.unit || 'Pcs',
       barcode: product.barcode || '',
-      base_cost: product.base_cost,
-      selling_price: product.selling_price,
-      commission_rate: product.commission_rate,
-      current_stock: product.current_stock,
-      min_stock_alert: product.min_stock_alert,
+      base_cost: product.base_cost ?? '',
+      selling_price: product.selling_price ?? '',
+      commission_rate: product.commission_rate ?? '',
+      current_stock: product.current_stock ?? '',
+      min_stock_alert: product.min_stock_alert ?? '',
       expiry_date: product.expiry_date || ''
     });
     setEditingId(product.id);
@@ -202,15 +207,15 @@ export default function Products() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
               <div className="form-group">
                 <label>Base Cost (₹)</label>
-                <input required type="number" step="0.01" value={newProduct.base_cost} onChange={e => setNewProduct({...newProduct, base_cost: parseFloat(e.target.value) || 0})} />
+                <input required type="number" step="0.01" placeholder="0.00" value={newProduct.base_cost} onChange={e => setNewProduct({...newProduct, base_cost: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Selling Price (₹)</label>
-                <input required type="number" step="0.01" value={newProduct.selling_price} onChange={e => setNewProduct({...newProduct, selling_price: parseFloat(e.target.value) || 0})} />
+                <input required type="number" step="0.01" placeholder="0.00" value={newProduct.selling_price} onChange={e => setNewProduct({...newProduct, selling_price: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Hawker Commission (₹)</label>
-                <input required type="number" step="0.01" value={newProduct.commission_rate} onChange={e => setNewProduct({...newProduct, commission_rate: parseFloat(e.target.value) || 0})} />
+                <input required type="number" step="0.01" placeholder="0.00" value={newProduct.commission_rate} onChange={e => setNewProduct({...newProduct, commission_rate: e.target.value})} />
               </div>
             </div>
 
@@ -218,11 +223,11 @@ export default function Products() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
               <div className="form-group">
                 <label>Initial Stock</label>
-                <input required type="number" value={newProduct.current_stock} onChange={e => setNewProduct({...newProduct, current_stock: parseInt(e.target.value) || 0})} />
+                <input required type="number" placeholder="0" value={newProduct.current_stock} onChange={e => setNewProduct({...newProduct, current_stock: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Min Stock Alert</label>
-                <input required type="number" value={newProduct.min_stock_alert} onChange={e => setNewProduct({...newProduct, min_stock_alert: parseInt(e.target.value) || 0})} />
+                <input required type="number" placeholder="10" value={newProduct.min_stock_alert} onChange={e => setNewProduct({...newProduct, min_stock_alert: e.target.value})} />
               </div>
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>

@@ -18,8 +18,8 @@ export default function Inventory() {
   const [newPurchase, setNewPurchase] = useState({
     date: new Date().toISOString().split('T')[0],
     product_id: '',
-    quantity: 1,
-    total_cost: 0,
+    quantity: '',
+    total_cost: '',
     supplier: '',
     supplier_id: '',
     expiry_date: '',
@@ -65,8 +65,8 @@ export default function Inventory() {
       const payload = {
         ...newPurchase,
         product_id: parseInt(newPurchase.product_id),
-        quantity: parseInt(newPurchase.quantity),
-        total_cost: parseFloat(newPurchase.total_cost),
+        quantity: parseInt(newPurchase.quantity) || 1,
+        total_cost: parseFloat(newPurchase.total_cost) || 0,
         supplier: selectedSupp ? selectedSupp.name : newPurchase.supplier,
         supplier_id: selectedSupp ? selectedSupp.id : null,
         expiry_date: newPurchase.expiry_date || null
@@ -77,8 +77,8 @@ export default function Inventory() {
       setNewPurchase({
         date: new Date().toISOString().split('T')[0],
         product_id: products[0]?.id || '',
-        quantity: 1,
-        total_cost: 0,
+        quantity: '',
+        total_cost: '',
         supplier: '',
         supplier_id: '',
         expiry_date: '',
@@ -250,11 +250,11 @@ export default function Inventory() {
                   </div>
                   <div className="form-group">
                     <label>Quantity Added *</label>
-                    <input required type="number" min="1" value={newPurchase.quantity} onChange={e => setNewPurchase({...newPurchase, quantity: e.target.value})} />
+                    <input required type="number" min="1" placeholder="1" value={newPurchase.quantity} onChange={e => setNewPurchase({...newPurchase, quantity: e.target.value})} />
                   </div>
                   <div className="form-group">
                     <label>Total Cost (₹) *</label>
-                    <input required type="number" step="0.01" value={newPurchase.total_cost} onChange={e => setNewPurchase({...newPurchase, total_cost: e.target.value})} />
+                    <input required type="number" step="0.01" placeholder="0.00" value={newPurchase.total_cost} onChange={e => setNewPurchase({...newPurchase, total_cost: e.target.value})} />
                   </div>
 
                   <div className="form-group">
