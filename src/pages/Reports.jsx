@@ -652,7 +652,7 @@ export default function Reports() {
             date: c.date,
             hawker: h.name,
             method: c.payment_method || 'Cash',
-            type: 'Direct Collection',
+            type: c.is_edited ? `Direct Collection (Edited${c.original_amount ? `, orig ₹${c.original_amount.toFixed(2)}` : ''})` : 'Direct Collection',
             amount: formatCurrency(c.amount),
             raw_amount: c.amount || 0
           };

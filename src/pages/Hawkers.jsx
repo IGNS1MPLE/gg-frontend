@@ -3,18 +3,22 @@ import { api } from '../api';
 import { 
   Search, Plus, Edit, Trash2, MapPin, Check, X, FileText, 
   RotateCcw, ChevronDown, ChevronUp, Package, DollarSign, Calendar, 
-  AlertTriangle, ExternalLink, User, CheckCircle 
+  AlertTriangle, ExternalLink, User, CheckCircle, Pencil, Banknote, Clock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import EditCollectionModal from '../components/EditCollectionModal';
 
 export default function Hawkers() {
   const [hawkers, setHawkers] = useState([]);
   const [products, setProducts] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [collections, setCollections] = useState([]);
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingHawker, setEditingHawker] = useState(null);
   const [selectedHawkerReturnsModal, setSelectedHawkerReturnsModal] = useState(null);
+  const [editingCollection, setEditingCollection] = useState(null);
+  const [historyModalTab, setHistoryModalTab] = useState('activity'); // 'activity' or 'collections'
   
   // Accordion Expand State
   const [expandedHawkerId, setExpandedHawkerId] = useState(null);
@@ -28,14 +32,16 @@ export default function Hawkers() {
 
   const fetchData = async () => {
     try {
-      const [hawkersRes, productsRes, logsRes] = await Promise.all([
+      const [hawkersRes, productsRes, logsRes, collectionsRes] = await Promise.all([
         api.get('/hawkers/'),
         api.get('/products/'),
-        api.get('/logs/')
+        api.get('/logs/'),
+        api.get('/collections/')
       ]);
       setHawkers(hawkersRes);
       setProducts(productsRes);
       setLogs(logsRes);
+      setCollections(collectionsRes);
     } catch (e) {
       console.error(e);
     }
@@ -427,9 +433,100 @@ export default function Hawkers() {
                                       })}
                                     </tbody>
                                   </table>
-                                </div>
+                              </div>
                               )}
                             </div>
+
+                            {/* DIRECT PAYMENT COLLECTIONS LEDGER */}
+                            {(() => {
+                              const hawkerCols = collections.filter(c => c.hawker_id === hawker.id);
+                              const totalCols = hawkerCols.reduce((sum, c) => sum + (c.amount || 0), 0);
+
+                              return (
+                                <div>
+                                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                      <Banknote size={15} color="var(--mint-cyan)" /> Recorded Direct Payment Collections ({hawkerCols.length} Records):
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                      Total Direct Payments: <strong style={{ color: 'var(--success-color)' }}>₹{totalCols.toFixed(2)}</strong>
+                                    </div>
+                                  </div>
+
+                                  {hawkerCols.length === 0 ? (
+                                    <div style={{ padding: '1rem', background: '#FFFFFF', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                      No standalone payment collections recorded for this hawker yet.
+                                    </div>
+                                  ) : (
+                                    <div style={{ overflowX: 'auto', background: '#FFFFFF', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                      <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse', margin: 0 }}>
+                                        <thead>
+                                          <tr style={{ background: '#F2F9F8', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                                            <th style={{ padding: '0.5rem' }}>Ref ID</th>
+                                            <th style={{ padding: '0.5rem' }}>Date</th>
+                                            <th style={{ padding: '0.5rem' }}>Amount</th>
+                                            <th style={{ padding: '0.5rem' }}>Method</th>
+                                            <th style={{ padding: '0.5rem' }}>Status</th>
+                                            <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {hawkerCols.slice().reverse().map(col => (
+                                            <tr key={col.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                              <td style={{ padding: '0.5rem', fontWeight: 600 }}>#COL-{col.id}</td>
+                                              <td style={{ padding: '0.5rem' }}>{col.date}</td>
+                                              <td style={{ padding: '0.5rem', fontWeight: 700 }} className="text-success">
+                                                +₹{col.amount.toFixed(2)}
+                                                {col.is_edited && col.original_amount !== null && col.original_amount !== undefined && Math.abs(col.original_amount - col.amount) > 0.001 && (
+                                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textDecoration: 'line-through', marginLeft: '0.35rem' }}>
+                                                    orig: ₹{col.original_amount.toFixed(2)}
+                                                  </span>
+                                                )}
+                                              </td>
+                                              <td style={{ padding: '0.5rem' }}>
+                                                <span className="badge info" style={{ fontSize: '0.725rem' }}>{col.payment_method}</span>
+                                              </td>
+                                              <td style={{ padding: '0.5rem' }}>
+                                                {col.is_edited ? (
+                                                  <span className="badge warning" style={{ fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }} title={`Edited on ${col.edited_at || ''}: ${col.edit_reason || ''}`}>
+                                                    <Clock size={11} /> Edited
+                                                  </span>
+                                                ) : (
+                                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Original</span>
+                                                )}
+                                              </td>
+                                              <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                                <button
+                                                  className="btn btn-secondary"
+                                                  style={{ padding: '0.3rem 0.5rem', marginRight: '0.35rem' }}
+                                                  title="Edit Payment & Recalculate Balances"
+                                                  onClick={() => setEditingCollection(col)}
+                                                >
+                                                  <Pencil size={13} />
+                                                </button>
+                                                <button
+                                                  className="btn btn-secondary"
+                                                  style={{ padding: '0.3rem 0.5rem', color: 'var(--danger-color)' }}
+                                                  title="Delete Payment"
+                                                  onClick={async () => {
+                                                    if (window.confirm(`Delete payment #COL-${col.id} (₹${col.amount})? This will reverse the payment and adjust ${hawker.name}'s balance.`)) {
+                                                      await api.delete(`/collections/${col.id}`);
+                                                      fetchData();
+                                                    }
+                                                  }}
+                                                >
+                                                  <Trash2 size={13} />
+                                                </button>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                           </div>
                         </td>
@@ -475,68 +572,163 @@ export default function Hawkers() {
             </button>
 
             <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText color="var(--accent-color)" size={20}/> Complete Activity Log: {selectedHawkerReturnsModal.name}
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText color="var(--accent-color)" size={20}/> Complete Activity Log: {selectedHawkerReturnsModal.name}
+                </h2>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryModalTab('activity')}
+                    className={`btn ${historyModalTab === 'activity' ? 'btn-success' : 'btn-secondary'}`}
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    Dispatches & Returns ({hawkerReturnsList.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryModalTab('collections')}
+                    className={`btn ${historyModalTab === 'collections' ? 'btn-success' : 'btn-secondary'}`}
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    Direct Payments ({collections.filter(c => c.hawker_id === selectedHawkerReturnsModal.id).length})
+                  </button>
+                </div>
+              </div>
               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 Historical log of dispatches, unsold returns, damaged products, and cash collections for this hawker.
               </p>
             </div>
 
             <div style={{ overflowY: 'auto', flex: 1 }}>
-              <table style={{ margin: 0, fontSize: '0.85rem' }}>
-                <thead>
-                  <tr style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th style={{ textAlign: 'center' }}>Issued</th>
-                    <th style={{ textAlign: 'center' }}>Returned</th>
-                    <th style={{ textAlign: 'center' }}>Damaged</th>
-                    <th style={{ textAlign: 'center' }}>Sold</th>
-                    <th style={{ textAlign: 'right' }}>Cash Collected</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hawkerReturnsList.map(log => {
-                    const product = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}` };
-                    const isSettled = log.returned_qty > 0 || log.damaged_qty > 0 || log.cash_collected > 0 || log.sold_qty > 0;
-                    
-                    return (
-                      <tr key={log.id}>
-                        <td>{log.date}</td>
-                        <td style={{ fontWeight: 600 }}>{product.name}</td>
-                        <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--info-color)' }}>{log.dispatched_qty}</td>
-                        <td style={{ textAlign: 'center', color: 'var(--text-primary)' }}>{log.returned_qty}</td>
-                        <td style={{ textAlign: 'center', color: log.damaged_qty > 0 ? 'var(--coral-red)' : 'var(--text-secondary)', fontWeight: log.damaged_qty > 0 ? 700 : 400 }}>
-                          {log.damaged_qty || 0}
-                        </td>
-                        <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--success-color)' }}>
-                          {isSettled ? log.sold_qty : '-'}
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                          {isSettled ? `₹${log.cash_collected.toFixed(2)}` : '-'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {isSettled ? (
-                            <span className="badge success" style={{ fontSize: '0.75rem' }}>Settled</span>
-                          ) : (
-                            <span className="badge warning" style={{ fontSize: '0.75rem' }}>Pending</span>
-                          )}
+              {historyModalTab === 'activity' ? (
+                <table style={{ margin: 0, fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                      <th>Date</th>
+                      <th>Product</th>
+                      <th style={{ textAlign: 'center' }}>Issued</th>
+                      <th style={{ textAlign: 'center' }}>Returned</th>
+                      <th style={{ textAlign: 'center' }}>Damaged</th>
+                      <th style={{ textAlign: 'center' }}>Sold</th>
+                      <th style={{ textAlign: 'right' }}>Cash Collected</th>
+                      <th style={{ textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hawkerReturnsList.map(log => {
+                      const product = products.find(p => p.id === log.product_id) || { name: `Product #${log.product_id}` };
+                      const isSettled = log.returned_qty > 0 || log.damaged_qty > 0 || log.cash_collected > 0 || log.sold_qty > 0;
+                      
+                      return (
+                        <tr key={log.id}>
+                          <td>{log.date}</td>
+                          <td style={{ fontWeight: 600 }}>{product.name}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--info-color)' }}>{log.dispatched_qty}</td>
+                          <td style={{ textAlign: 'center', color: 'var(--text-primary)' }}>{log.returned_qty}</td>
+                          <td style={{ textAlign: 'center', color: log.damaged_qty > 0 ? 'var(--coral-red)' : 'var(--text-secondary)', fontWeight: log.damaged_qty > 0 ? 700 : 400 }}>
+                            {log.damaged_qty || 0}
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--success-color)' }}>
+                            {isSettled ? log.sold_qty : '-'}
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            {isSettled ? `₹${log.cash_collected.toFixed(2)}` : '-'}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {isSettled ? (
+                              <span className="badge success" style={{ fontSize: '0.75rem' }}>Settled</span>
+                            ) : (
+                              <span className="badge warning" style={{ fontSize: '0.75rem' }}>Pending</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {hawkerReturnsList.length === 0 && (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-secondary)' }}>
+                          No activity log entries found for this hawker yet.
                         </td>
                       </tr>
-                    );
-                  })}
-
-                  {hawkerReturnsList.length === 0 && (
-                    <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-secondary)' }}>
-                        No activity log entries found for this hawker yet.
-                      </td>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table style={{ margin: 0, fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                      <th>Ref ID</th>
+                      <th>Date</th>
+                      <th>Amount Received</th>
+                      <th>Method</th>
+                      <th>Audit Status</th>
+                      <th style={{ textAlign: 'center' }}>Actions</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {collections
+                      .filter(c => c.hawker_id === selectedHawkerReturnsModal.id)
+                      .slice()
+                      .reverse()
+                      .map(col => (
+                        <tr key={col.id}>
+                          <td style={{ fontWeight: 600 }}>#COL-{col.id}</td>
+                          <td>{col.date}</td>
+                          <td style={{ fontWeight: 700 }} className="text-success">
+                            +₹{col.amount.toFixed(2)}
+                            {col.is_edited && col.original_amount !== null && col.original_amount !== undefined && Math.abs(col.original_amount - col.amount) > 0.001 && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textDecoration: 'line-through', marginLeft: '0.35rem' }}>
+                                orig: ₹{col.original_amount.toFixed(2)}
+                              </span>
+                            )}
+                          </td>
+                          <td><span className="badge info" style={{ fontSize: '0.725rem' }}>{col.payment_method}</span></td>
+                          <td>
+                            {col.is_edited ? (
+                              <span className="badge warning" style={{ fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }} title={`Edited: ${col.edit_reason || ''}`}>
+                                <Clock size={11} /> Edited
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Original</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: '0.35rem 0.55rem', marginRight: '0.35rem' }}
+                              title="Edit Payment Record"
+                              onClick={() => setEditingCollection(col)}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: '0.35rem 0.55rem', color: 'var(--danger-color)' }}
+                              title="Delete Payment Record"
+                              onClick={async () => {
+                                if (window.confirm(`Delete payment #COL-${col.id} (₹${col.amount})? This will adjust the hawker's balance.`)) {
+                                  await api.delete(`/collections/${col.id}`);
+                                  fetchData();
+                                }
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    {collections.filter(c => c.hawker_id === selectedHawkerReturnsModal.id).length === 0 && (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-secondary)' }}>
+                          No payment collection entries found for this hawker yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
@@ -546,6 +738,19 @@ export default function Hawkers() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Collection Modal */}
+      {editingCollection && (
+        <EditCollectionModal
+          isOpen={!!editingCollection}
+          collection={editingCollection}
+          hawkers={hawkers}
+          onClose={() => setEditingCollection(null)}
+          onSuccess={() => {
+            fetchData();
+          }}
+        />
       )}
 
     </div>
