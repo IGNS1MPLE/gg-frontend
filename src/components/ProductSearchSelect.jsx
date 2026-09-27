@@ -15,7 +15,11 @@ export default function ProductSearchSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [isFocused, setIsFocused] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
   const searchInputRef = useRef(null);
 
   // Find currently selected product object
@@ -34,22 +38,12 @@ export default function ProductSearchSelect({
 
   // Auto-focus search input when opened
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  // Handle ESC key
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
     if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+      setHighlightedIndex(0);
     }
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
   // Derive unique categories
@@ -67,16 +61,64 @@ export default function ProductSearchSelect({
     return matchesCategory && matchesSearch;
   });
 
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [searchTerm, selectedCategory]);
+
   const handleSelect = (product) => {
     onChange(product.id);
     setIsOpen(false);
     setSearchTerm('');
+    triggerRef.current?.focus();
   };
 
   const handleClear = (e) => {
     e.stopPropagation();
     onChange('');
     setSearchTerm('');
+    triggerRef.current?.focus();
+  };
+
+  // Keyboard navigation on trigger button (when closed/focused)
+  const handleTriggerKeyDown = (e) => {
+    if (disabled) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setIsOpen(true);
+    }
+  };
+
+  // Keyboard navigation inside dropdown search
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => Math.min(prev + 1, Math.max(0, filteredProducts.length - 1)));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredProducts.length > 0 && filteredProducts[highlightedIndex]) {
+        handleSelect(filteredProducts[highlightedIndex]);
+      }
+    } else if (e.key === 'Tab') {
+      setIsOpen(false);
+      const focusable = Array.from(document.querySelectorAll(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex="0"]:not([disabled])'
+      ));
+      const currentIndex = focusable.indexOf(triggerRef.current);
+      if (currentIndex !== -1) {
+        e.preventDefault();
+        const nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
+        if (focusable[nextIndex]) {
+          focusable[nextIndex].focus();
+        }
+      }
+    }
   };
 
   return (
@@ -87,12 +129,21 @@ export default function ProductSearchSelect({
     >
       {/* Selected Box / Control Display */}
       <div
+        ref={triggerRef}
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        tabIndex={disabled ? -1 : 0}
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={handleTriggerKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         style={{
           width: '100%',
           backgroundColor: disabled ? '#E5EFEF' : isOpen ? '#FFFFFF' : '#F2F9F8',
-          border: `1.5px solid ${isOpen ? 'var(--mint-cyan)' : 'var(--border-color)'}`,
-          boxShadow: isOpen ? '0 0 0 3px rgba(45, 212, 191, 0.2)' : 'none',
+          border: `1.5px solid ${(isOpen || isFocused) ? 'var(--mint-cyan)' : 'var(--border-color)'}`,
+          boxShadow: (isOpen || isFocused) ? '0 0 0 3px rgba(45, 212, 191, 0.25)' : 'none',
+          outline: 'none',
           color: 'var(--text-primary)',
           padding: '0.75rem 1rem',
           borderRadius: '14px',
@@ -210,6 +261,7 @@ export default function ProductSearchSelect({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="Search product name, category, or barcode..."
               style={{
                 paddingLeft: '2.4rem',
@@ -219,7 +271,8 @@ export default function ProductSearchSelect({
                 fontSize: '0.875rem',
                 borderRadius: '10px',
                 backgroundColor: '#F2F9F8',
-                border: '1px solid var(--border-color)'
+                border: '1px solid var(--border-color)',
+                outline: 'none'
               }}
             />
             {searchTerm && (
@@ -299,12 +352,14 @@ export default function ProductSearchSelect({
                 <div>No products found matching "{searchTerm}"</div>
               </div>
             ) : (
-              filteredProducts.map(p => {
+              filteredProducts.map((p, index) => {
                 const isSelected = String(p.id) === String(value);
+                const isHighlighted = index === highlightedIndex;
                 return (
                   <div
                     key={p.id}
                     onClick={() => handleSelect(p)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
                     style={{
                       padding: '0.65rem 0.85rem',
                       borderRadius: '10px',
@@ -312,15 +367,9 @@ export default function ProductSearchSelect({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      backgroundColor: isSelected ? 'var(--accent-pill)' : '#FFFFFF',
+                      backgroundColor: isSelected ? 'var(--accent-pill)' : isHighlighted ? '#F2F9F8' : '#FFFFFF',
                       transition: 'background-color 0.15s ease',
                       border: isSelected ? '1px solid var(--mint-cyan)' : '1px solid transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = '#F2F9F8';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = '#FFFFFF';
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
