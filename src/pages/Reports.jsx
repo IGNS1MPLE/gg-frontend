@@ -110,6 +110,8 @@ export default function Reports() {
       let columns = [];
       let rows = [];
       let totalsRow = null;
+      let summaryLine = "";
+      let summaryStats = [];
 
       const currentMonthName = monthNames[selectedMonth - 1] || 'Unknown Month';
 
@@ -158,7 +160,7 @@ export default function Reports() {
         });
 
         if (rows.length > 0) {
-          const uniqueHawkers = new Set(rows.map(r => r.hawker)).size;
+          const uniqueProducts = new Set(filtered.map(l => l.product_id).filter(Boolean)).size;
           const sumDispatched = rows.reduce((sum, r) => sum + r.raw_dispatched, 0);
           const sumReturned = rows.reduce((sum, r) => sum + r.raw_returned, 0);
           const sumDamaged = rows.reduce((sum, r) => sum + r.raw_damaged, 0);
@@ -167,17 +169,27 @@ export default function Reports() {
 
           totalsRow = {
             date: 'TOTAL',
-            hawker: `${uniqueHawkers} Hawkers`,
-            route: '—',
-            product: `${rows.length} Dispatches`,
+            hawker: '',
+            route: '',
+            product: 'TOTAL',
             dispatched: sumDispatched,
             returned: sumReturned,
             damaged: sumDamaged,
             sold: sumSold,
-            price: '—',
+            price: '',
             revenue: formatCurrency(sumRevenue),
             isTotal: true
           };
+
+          summaryLine = `Total Sales Today: ${formatCurrency(sumRevenue)} across ${uniqueProducts} ${uniqueProducts === 1 ? 'product' : 'products'}`;
+          summaryStats = [
+            { label: 'Total Dispatched', value: sumDispatched },
+            { label: 'Total Returned', value: sumReturned },
+            { label: 'Total Damaged', value: sumDamaged },
+            { label: 'Total Sold', value: sumSold }
+          ];
+        } else {
+          summaryLine = `Total Sales Today: ₹0.00 across 0 products`;
         }
       }
 
@@ -235,6 +247,7 @@ export default function Reports() {
         }));
 
         if (rows.length > 0) {
+          const uniqueProducts = new Set(filtered.map(l => l.product_id).filter(Boolean)).size;
           const sumDispatches = rows.reduce((sum, r) => sum + r.raw_dispatches, 0);
           const sumIssued = rows.reduce((sum, r) => sum + r.raw_issued, 0);
           const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
@@ -243,7 +256,7 @@ export default function Reports() {
           const sumProfit = rows.reduce((sum, r) => sum + r.raw_profit, 0);
 
           totalsRow = {
-            date: `TOTAL (${rows.length} Days)`,
+            date: 'TOTAL',
             dispatches: sumDispatches,
             issued: sumIssued,
             sold: sumSold,
@@ -252,6 +265,16 @@ export default function Reports() {
             profit: formatCurrency(sumProfit),
             isTotal: true
           };
+
+          summaryLine = `Total Sales This Month: ${formatCurrency(sumRevenue)} across ${uniqueProducts} ${uniqueProducts === 1 ? 'product' : 'products'}`;
+          summaryStats = [
+            { label: 'Active Days', value: rows.length },
+            { label: 'Total Dispatches', value: sumDispatches },
+            { label: 'Units Sold', value: sumSold },
+            { label: 'Net Profit', value: formatCurrency(sumProfit) }
+          ];
+        } else {
+          summaryLine = `Total Sales This Month: ₹0.00 across 0 products`;
         }
       }
 
@@ -334,6 +357,13 @@ export default function Reports() {
             margin: `${overallMargin.toFixed(1)}%`,
             isTotal: true
           };
+
+          summaryLine = `Total Product Sales: ${formatCurrency(sumRevenue)} across ${rows.length} ${rows.length === 1 ? 'product' : 'products'}`;
+          summaryStats = [
+            { label: 'Units Sold', value: sumSold },
+            { label: 'Total Profit', value: formatCurrency(sumProfit) },
+            { label: 'Net Margin', value: `${overallMargin.toFixed(1)}%` }
+          ];
         }
       }
 
@@ -395,6 +425,13 @@ export default function Reports() {
             balance: formatCurrency(sumBalance),
             isTotal: true
           };
+
+          summaryLine = `Total Hawker Sales: ${formatCurrency(sumRevenue)} across ${rows.length} ${rows.length === 1 ? 'hawker' : 'hawkers'}`;
+          summaryStats = [
+            { label: 'Units Sold', value: sumSold },
+            { label: 'Hawker Payouts', value: formatCurrency(sumPayout) },
+            { label: 'Outstanding Balance', value: formatCurrency(sumBalance) }
+          ];
         }
       }
 
@@ -448,6 +485,11 @@ export default function Reports() {
             expiry: '—',
             isTotal: true
           };
+
+          summaryLine = `Total Warehouse Stock: ${sumStock} units across ${rows.length} products`;
+          summaryStats = [
+            { label: 'Low Stock Alerts', value: lowStockCount }
+          ];
         }
       }
 
@@ -511,6 +553,11 @@ export default function Reports() {
             cash: formatCurrency(sumCash),
             isTotal: true
           };
+
+          summaryLine = `Total Evening Returns: ${sumReturned} returned, ${sumDamaged} damaged across ${rows.length} logs`;
+          summaryStats = [
+            { label: 'Cash Collected', value: formatCurrency(sumCash) }
+          ];
         }
       }
 
@@ -575,6 +622,12 @@ export default function Reports() {
             isHighlight: true
           }
         ];
+
+        summaryLine = `Overall Net System Profit: ${formatCurrency(totalSalesProfit - totalExp)}`;
+        summaryStats = [
+          { label: 'Gross Sales', value: formatCurrency(totalGross) },
+          { label: 'Expenses', value: formatCurrency(totalExp) }
+        ];
       }
 
       // 8. COLLECTIONS LEDGER REPORT
@@ -631,11 +684,16 @@ export default function Reports() {
             amount: formatCurrency(sumAmount),
             isTotal: true
           };
+
+          summaryLine = `Total Collections: ${formatCurrency(sumAmount)} across ${rows.length} transactions`;
+          summaryStats = [
+            { label: 'Settlement Count', value: rows.length }
+          ];
         }
       }
 
       setLoading(false);
-      return { reportId, title, filterLabel, emptyMessage, columns, rows, totalsRow };
+      return { reportId, title, filterLabel, emptyMessage, columns, rows, totalsRow, summaryLine, summaryStats };
     } catch (e) {
       console.error(e);
       setLoading(false);
@@ -644,7 +702,7 @@ export default function Reports() {
     }
   };
 
-  // Export to Excel with Totals Row
+  // Export to Excel with Totals Row & Summary
   const handleExportExcel = async (reportId) => {
     setLoading(true);
     setLoadingReportId(reportId);
@@ -656,23 +714,27 @@ export default function Reports() {
     const wsData = [
       [data.title],
       [`Filter: ${data.filterLabel}`],
+      ...(data.summaryLine ? [[data.summaryLine]] : []),
       [`Generated: ${new Date().toLocaleString()}`],
       [],
       data.columns.map(c => c.header),
       ...data.rows.map(r => data.columns.map(c => r[c.key])),
       ...(data.totalsRow ? [
         [], // empty separator row
-        data.columns.map(c => data.totalsRow[c.key] ?? '')
+        data.columns.map(c => (data.totalsRow[c.key] !== undefined && data.totalsRow[c.key] !== null ? data.totalsRow[c.key] : ''))
       ] : [])
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+    worksheet['!cols'] = data.columns.map(c => ({
+      wch: Math.max(c.header.length + 4, 15)
+    }));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
     XLSX.writeFile(workbook, `${data.title.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
   };
 
-  // Export to PDF with Totals Row
+  // Export to PDF with Totals Row & Summary
   const handleExportPDF = async (reportId) => {
     setLoading(true);
     setLoadingReportId(reportId);
@@ -698,12 +760,26 @@ export default function Reports() {
     doc.setFont('helvetica', 'normal');
     doc.text(`Filter: ${data.filterLabel}  |  Generated on: ${new Date().toLocaleString()}  |  IMS Business Intelligence`, 14, 21);
 
-    // Table Content
-    let y = 38;
-    doc.setFontSize(8);
-
     const marginX = 10;
     const tableWidth = pageWidth - (marginX * 2);
+    let y = 35;
+
+    // Summary Highlight Callout in PDF
+    if (data.summaryLine) {
+      doc.setFillColor(45, 212, 191);
+      doc.rect(marginX, y, tableWidth, 0.75, 'F');
+      doc.setFillColor(236, 246, 244);
+      doc.rect(marginX, y + 0.75, tableWidth, 8.5, 'F');
+      doc.setTextColor(19, 78, 74);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(data.summaryLine, marginX + 3, y + 6.5);
+      y += 15;
+    } else {
+      y += 3;
+    }
+
+    doc.setFontSize(8);
     const colWidth = tableWidth / data.columns.length;
 
     // Header row
@@ -748,16 +824,17 @@ export default function Reports() {
         doc.addPage();
         y = 20;
       }
-      doc.setFillColor(220, 240, 236);
-      doc.rect(marginX, y - 5, tableWidth, 8, 'F');
-      doc.setTextColor(24, 56, 51);
+      doc.setFillColor(216, 238, 233);
+      doc.rect(marginX, y - 5, tableWidth, 8.5, 'F');
+      doc.setTextColor(19, 78, 74);
       doc.setFont('helvetica', 'bold');
       data.columns.forEach((col, i) => {
-        const textVal = String(data.totalsRow[col.key] ?? '—');
+        const rawVal = data.totalsRow[col.key];
+        const textVal = rawVal !== undefined && rawVal !== null ? String(rawVal) : '';
         const safeText = textVal.length > 17 ? textVal.substring(0, 16) + '.' : textVal;
         doc.text(safeText, marginX + 2 + (i * colWidth), y);
       });
-      y += 8;
+      y += 8.5;
     }
 
     doc.save(`${data.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
@@ -970,7 +1047,7 @@ export default function Reports() {
                   <Calendar size={13} /> Showing data for: <strong>{previewModal.filterLabel}</strong>
                 </span>
                 <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                  • {previewModal.rows.length} {previewModal.rows.length === 1 ? 'record' : 'records'} found
+                  • Showing {previewModal.rows.length} {previewModal.rows.length === 1 ? 'record' : 'records'} prepared for download
                 </span>
                 {sortColumn && (
                   <span style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', background: '#F1F5F9', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
@@ -978,6 +1055,62 @@ export default function Reports() {
                   </span>
                 )}
               </div>
+
+              {/* Quick Summary Line at top of modal */}
+              {previewModal.summaryLine && previewModal.rows.length > 0 && (
+                <div style={{
+                  marginTop: '0.75rem',
+                  padding: '0.65rem 1rem',
+                  background: 'linear-gradient(90deg, #E6F4F1 0%, #F0FDF4 100%)',
+                  border: '1.5px solid #2DD4BF',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <span style={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      background: 'var(--accent-color)',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: '0.8rem'
+                    }}>
+                      ₹
+                    </span>
+                    <span style={{ fontWeight: 700, fontSize: '0.975rem', color: '#134E4A' }}>
+                      {previewModal.summaryLine}
+                    </span>
+                  </div>
+                  {previewModal.summaryStats && previewModal.summaryStats.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                      {previewModal.summaryStats.map((st, i) => (
+                        <span 
+                          key={i} 
+                          style={{
+                            fontSize: '0.775rem',
+                            color: '#0F766E',
+                            background: '#FFFFFF',
+                            border: '1px solid #99F6E4',
+                            borderRadius: '6px',
+                            padding: '0.2rem 0.55rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          {st.label}: <strong style={{ color: '#134E4A' }}>{st.value}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Modal Table Content */}
@@ -1105,13 +1238,14 @@ export default function Reports() {
                   {previewModal.totalsRow && sortedRows.length > 0 && (
                     <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 9 }}>
                       <tr style={{ 
-                        background: '#E2F1EF', 
-                        borderTop: '2px solid var(--accent-color)', 
+                        background: '#D4EDE8', 
+                        borderTop: '2.5px solid var(--accent-color)', 
                         fontWeight: 800,
                         color: 'var(--text-primary)' 
                       }}>
                         {previewModal.columns.map(col => {
                           const isNum = isNumericKey(col.key);
+                          const isKeyRevenue = col.key === 'revenue';
 
                           return (
                             <td 
@@ -1119,18 +1253,20 @@ export default function Reports() {
                               style={{ 
                                 position: 'sticky',
                                 bottom: 0,
-                                background: '#E2F1EF',
+                                background: '#D4EDE8',
                                 padding: '0.75rem 0.85rem',
                                 whiteSpace: 'nowrap',
                                 textAlign: isNum ? 'right' : 'left',
-                                fontWeight: 800,
-                                fontSize: '0.875rem',
-                                color: 'var(--text-primary)',
-                                borderTop: '2px solid var(--accent-color)',
-                                boxShadow: '0 -2px 4px rgba(0,0,0,0.06)'
+                                fontWeight: isKeyRevenue ? 900 : 800,
+                                fontSize: isKeyRevenue ? '0.925rem' : '0.875rem',
+                                color: isKeyRevenue ? '#0D5B52' : 'var(--text-primary)',
+                                borderTop: '2.5px solid var(--accent-color)',
+                                boxShadow: '0 -4px 8px rgba(0,0,0,0.08)'
                               }}
                             >
-                              {previewModal.totalsRow[col.key] ?? '—'}
+                              {previewModal.totalsRow[col.key] !== undefined && previewModal.totalsRow[col.key] !== null 
+                                ? previewModal.totalsRow[col.key] 
+                                : '—'}
                             </td>
                           );
                         })}
