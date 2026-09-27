@@ -16,13 +16,11 @@ import {
   Bell,
   UserCheck,
   Settings,
-  Search,
   LogOut,
   User,
   PlusCircle,
   X,
   Home,
-  Mail,
   Trash2
 } from 'lucide-react';
 
@@ -280,11 +278,6 @@ function AppContent() {
             <div className="topbar-breadcrumb">
               <Home size={15} style={{ marginBottom: '1px' }} /> HOME &gt; <span>{getPageTitle()}</span>
             </div>
-
-            <div className="topbar-search">
-              <Search size={16} color="var(--text-secondary)" />
-              <input type="text" placeholder="Search..." />
-            </div>
           </div>
 
           <div className="topbar-actions">
@@ -296,15 +289,6 @@ function AppContent() {
               style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
             >
               <PlusCircle size={14} color="var(--accent-color)" /> + Request Product
-            </button>
-
-            <button 
-              className="topbar-icon-btn" 
-              title="Product Requests"
-              onClick={() => setShowRequestModal(true)}
-            >
-              <Mail size={18} />
-              <span className="topbar-badge">2</span>
             </button>
             
             {/* Notification Center Bell & Dropdown */}

@@ -21,7 +21,7 @@ export default function DailyDistribution() {
     hawker_id: '',
     route: '',
     product_id: '',
-    dispatched_qty: 1
+    dispatched_qty: ''
   });
 
   const fetchData = async () => {
@@ -39,18 +39,6 @@ export default function DailyDistribution() {
       // Filter for today's dispatches
       const today = new Date().toISOString().split('T')[0];
       setLogs(logsRes.filter(log => log.date === today));
-      
-      if (activeHawkers.length > 0 && !dispatchData.hawker_id) {
-        const firstHawker = activeHawkers[0];
-        setDispatchData(prev => ({ 
-          ...prev, 
-          hawker_id: firstHawker.id,
-          route: firstHawker.route || ''
-        }));
-      }
-      if (productsRes.length > 0 && !dispatchData.product_id) {
-        setDispatchData(prev => ({ ...prev, product_id: productsRes[0].id }));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -61,6 +49,14 @@ export default function DailyDistribution() {
   }, []);
 
   const handleHawkerChange = (hawkerId) => {
+    if (!hawkerId) {
+      setDispatchData(prev => ({
+        ...prev,
+        hawker_id: '',
+        route: ''
+      }));
+      return;
+    }
     const selectedHawker = hawkers.find(h => h.id === hawkerId);
     setDispatchData(prev => ({
       ...prev,
@@ -72,16 +68,16 @@ export default function DailyDistribution() {
   // Add Product to Cart
   const handleAddToCart = (e) => {
     e.preventDefault();
-    if (!dispatchData.product_id) {
-      alert('Please select a product first');
-      return;
-    }
     if (!dispatchData.hawker_id) {
       alert('Please select a hawker');
       return;
     }
-    const qty = parseInt(dispatchData.dispatched_qty) || 1;
-    if (qty <= 0) {
+    if (!dispatchData.product_id) {
+      alert('Please select a product first');
+      return;
+    }
+    const qty = parseInt(dispatchData.dispatched_qty);
+    if (!qty || qty <= 0) {
       alert('Quantity must be at least 1');
       return;
     }
@@ -119,8 +115,8 @@ export default function DailyDistribution() {
       setCart([...cart, newItem]);
     }
 
-    // Reset qty input
-    setDispatchData(prev => ({ ...prev, dispatched_qty: 1 }));
+    // Reset product and qty for next item, keeping hawker, route & date
+    setDispatchData(prev => ({ ...prev, product_id: '', dispatched_qty: '' }));
   };
 
   // Remove item from Cart
@@ -179,6 +175,13 @@ export default function DailyDistribution() {
 
       // Clear cart & Refresh data
       setCart([]);
+      setDispatchData({
+        date: new Date().toISOString().split('T')[0],
+        hawker_id: '',
+        route: '',
+        product_id: '',
+        dispatched_qty: ''
+      });
       fetchData();
       alert(`Success! Issued ${totalUnitsIssued} units across ${totalProductsCount} products.`);
     } catch (e) {
@@ -332,7 +335,7 @@ _Issued via Inventory Management System_`;
                 <SearchableSelect
                   options={hawkers.map(h => ({ value: h.id, label: h.name, sublabel: h.route ? `Route: ${h.route}` : '' }))}
                   value={dispatchData.hawker_id}
-                  onChange={(val) => val && handleHawkerChange(parseInt(val))}
+                  onChange={(val) => handleHawkerChange(val ? parseInt(val) : '')}
                   placeholder="Search or select hawker..."
                   required
                   icon={User}
@@ -348,7 +351,7 @@ _Issued via Inventory Management System_`;
                 type="text" 
                 value={dispatchData.route} 
                 onChange={e => setDispatchData({...dispatchData, route: e.target.value})}
-                placeholder="e.g. Route 3 - East Zone"
+                placeholder="Enter route assignment..."
               />
             </div>
 
@@ -371,7 +374,7 @@ _Issued via Inventory Management System_`;
                 required 
                 type="number" 
                 min="1" 
-                placeholder="1"
+                placeholder="Enter quantity..."
                 value={dispatchData.dispatched_qty} 
                 onChange={e => setDispatchData({...dispatchData, dispatched_qty: e.target.value})} 
               />
