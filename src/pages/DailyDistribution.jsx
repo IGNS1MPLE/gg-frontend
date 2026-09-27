@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import ProductSearchSelect from '../components/ProductSearchSelect';
 import SearchableSelect from '../components/SearchableSelect';
+import { shareIssuedSlipToWhatsApp, formatIssuedSlipWhatsAppMessage, buildWhatsAppDesktopUrl } from '../utils/whatsapp';
 
 export default function DailyDistribution() {
   const [hawkers, setHawkers] = useState([]);
@@ -254,50 +255,17 @@ export default function DailyDistribution() {
     };
   });
 
-  // Build WhatsApp Share Link (Handles both Combined Slips and Single Slips)
+  // Handle WhatsApp Share (triggers native Desktop app with wa.me fallback & reuses same window)
+  const handleWhatsAppShare = (slip) => {
+    if (!slip) return;
+    shareIssuedSlipToWhatsApp(slip);
+  };
+
+  // Build WhatsApp Desktop URI scheme URL (kept for backwards compatibility)
   const buildWhatsAppShareLink = (slip) => {
-    let textMessage = '';
-
-    if (slip.isCombined) {
-      const itemsListStr = slip.items.map((item, idx) => 
-        `${idx + 1}. *${item.productName}* (${item.qty} units @ ₹${Number(item.unitPrice).toFixed(2)}) = ₹${Number(item.totalValue).toFixed(2)}`
-      ).join('\n');
-
-      textMessage = `*DAILY DISTRIBUTION - COMBINED MORNING ISSUE SLIP*
-----------------------------------------
-📅 *Date:* ${slip.date}
-👤 *Hawker:* ${slip.hawkerName}
-📍 *Route:* ${slip.route || 'N/A'}
-----------------------------------------
-📦 *ISSUED PRODUCTS (${slip.totalProducts} Types):*
-${itemsListStr}
-----------------------------------------
-🔢 *Total Units Issued:* ${slip.totalUnits} units
-💰 *GRAND TOTAL VALUE:* ₹${Number(slip.grandTotalValue).toFixed(2)}
-----------------------------------------
-_Issued via Inventory Management System_`;
-    } else {
-      textMessage = `*DAILY DISTRIBUTION - MORNING ISSUE SLIP*
-----------------------------------------
-📅 *Date:* ${slip.date}
-👤 *Hawker:* ${slip.hawkerName}
-📍 *Route:* ${slip.route || 'N/A'}
-🏷️ *Category:* ${slip.category || 'General'}
-📦 *Product:* ${slip.productName}
-🔢 *Quantity Issued:* ${slip.qty} units
-💵 *Unit Price:* ₹${Number(slip.unitPrice).toFixed(2)}
-----------------------------------------
-💰 *Total Value:* ₹${Number(slip.totalValue).toFixed(2)}
-----------------------------------------
-_Issued via Inventory Management System_`;
-    }
-
-    const encoded = encodeURIComponent(textMessage);
-    const phoneDigits = slip.contactInfo ? slip.contactInfo.replace(/\D/g, '') : '';
-    if (phoneDigits && phoneDigits.length >= 10) {
-      return `https://web.whatsapp.com/send?phone=${phoneDigits}&text=${encoded}`;
-    }
-    return `https://web.whatsapp.com/send?text=${encoded}`;
+    if (!slip) return '';
+    const message = formatIssuedSlipWhatsAppMessage(slip);
+    return buildWhatsAppDesktopUrl(slip.contactInfo, message);
   };
 
   return (
@@ -599,17 +567,17 @@ _Issued via Inventory Management System_`;
                         >
                           <FileText size={13} /> View Combined Slip
                         </button>
-                        <a 
-                          href={buildWhatsAppShareLink(group.combinedSlipObj)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
+                        <button 
+                          type="button"
+                          onClick={() => handleWhatsAppShare(group.combinedSlipObj)} 
                           className="btn" 
                           style={{ 
                             padding: '0.35rem 0.65rem', 
                             fontSize: '0.775rem', 
                             background: '#25D366', 
                             color: '#fff',
-                            textDecoration: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.3rem',
@@ -619,7 +587,7 @@ _Issued via Inventory Management System_`;
                           }}
                         >
                           <Share2 size={13} /> WhatsApp
-                        </a>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -749,16 +717,16 @@ _Issued via Inventory Management System_`;
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <a 
-                href={buildWhatsAppShareLink(activeSlipModal)} 
-                target="_blank" 
-                rel="noopener noreferrer"
+              <button 
+                type="button"
+                onClick={() => handleWhatsAppShare(activeSlipModal)} 
                 className="btn"
                 style={{ 
                   flex: 1, 
                   background: '#25D366', 
                   color: '#fff', 
-                  textDecoration: 'none', 
+                  border: 'none', 
+                  cursor: 'pointer',
                   display: 'inline-flex', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
@@ -768,7 +736,7 @@ _Issued via Inventory Management System_`;
                 }}
               >
                 <Share2 size={16} /> Share via WhatsApp
-              </a>
+              </button>
               <button 
                 className="btn btn-secondary" 
                 onClick={() => window.print()}
