@@ -11,7 +11,7 @@ export default function UsersRoles() {
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
-    role: 'Store Manager',
+    role: '',
     status: true,
     notes: ''
   });
@@ -31,10 +31,14 @@ export default function UsersRoles() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!newUser.role) {
+      alert('Please select a user role.');
+      return;
+    }
     try {
       await api.post('/users/', newUser);
       setShowForm(false);
-      setNewUser({ name: '', email: '', role: 'Store Manager', status: true, notes: '' });
+      setNewUser({ name: '', email: '', role: '', status: true, notes: '' });
       fetchUsers();
       alert('User created successfully!');
     } catch (e) {
@@ -46,6 +50,10 @@ export default function UsersRoles() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    if (!editingUser.role) {
+      alert('Please select a user role.');
+      return;
+    }
     try {
       await api.put(`/users/${editingUser.id}`, editingUser);
       setEditingUser(null);
@@ -103,8 +111,9 @@ export default function UsersRoles() {
                 <input required type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="sarah@example.com" />
               </div>
               <div className="form-group">
-                <label>Role</label>
-                <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                <label>Role *</label>
+                <select required value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <option value="">-- Select User Role --</option>
                   <option value="Admin">Admin (Full Control)</option>
                   <option value="Store Manager">Store Manager (Inventory & Restocks)</option>
                   <option value="Dispatcher">Dispatcher (Morning Distribution)</option>
@@ -140,8 +149,9 @@ export default function UsersRoles() {
                 <input required type="email" value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Role</label>
-                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})}>
+                <label>Role *</label>
+                <select required value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})}>
+                  <option value="">-- Select User Role --</option>
                   <option value="Admin">Admin (Full Control)</option>
                   <option value="Store Manager">Store Manager</option>
                   <option value="Dispatcher">Dispatcher</option>

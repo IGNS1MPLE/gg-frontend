@@ -8,7 +8,7 @@ export default function Expenses() {
   
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
-    category: 'Travel',
+    category: '',
     amount: '',
     description: ''
   });
@@ -40,13 +40,27 @@ export default function Expenses() {
 
   const handleExpense = async (e) => {
     e.preventDefault();
+    if (!newExpense.category) {
+      alert('Please select an expense category.');
+      return;
+    }
+    const amt = parseFloat(newExpense.amount);
+    if (isNaN(amt) || amt <= 0) {
+      alert('Please enter a valid expense amount greater than 0.');
+      return;
+    }
     try {
       await api.post('/expenses/', {
         ...newExpense,
-        amount: parseFloat(newExpense.amount)
+        amount: amt
       });
       setShowAddForm(false);
-      setNewExpense({ ...newExpense, amount: '', description: '' });
+      setNewExpense({
+        date: new Date().toISOString().split('T')[0],
+        category: '',
+        amount: '',
+        description: ''
+      });
       fetchExpenses();
       alert('Expense logged!');
     } catch (e) {
@@ -83,18 +97,19 @@ export default function Expenses() {
                 <input required type="date" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Category</label>
-                <select value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>
-                  <option>Travel / Fuel</option>
-                  <option>Salary / Wages</option>
-                  <option>Maintenance</option>
-                  <option>Utilities</option>
-                  <option>Other</option>
+                <label>Category *</label>
+                <select required value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>
+                  <option value="">-- Select Expense Category --</option>
+                  <option value="Travel / Fuel">Travel / Fuel</option>
+                  <option value="Salary / Wages">Salary / Wages</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Utilities">Utilities</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Amount (₹)</label>
-                <input required type="number" step="0.01" min="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})} />
+                <label>Amount (₹) *</label>
+                <input required type="number" step="0.01" min="0.01" placeholder="0.00" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Description</label>

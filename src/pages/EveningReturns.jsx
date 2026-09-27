@@ -86,8 +86,8 @@ export default function EveningReturns() {
     const initialReturns = {};
     group.logs.forEach(log => {
       initialReturns[log.id] = {
-        returned_qty: 0,
-        damaged_qty: 0
+        returned_qty: '',
+        damaged_qty: ''
       };
     });
     setReturnsState(initialReturns);

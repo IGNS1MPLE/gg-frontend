@@ -1,8 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { api } from '../api';
-import { FileText, FileSpreadsheet, Download, Eye, Calendar, Filter, X, RefreshCw, Layers } from 'lucide-react';
+import { 
+  FileText, FileSpreadsheet, Download, Eye, Calendar, Filter, X, 
+  RefreshCw, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, AlertCircle 
+} from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
+
+const formatCurrency = (val) => {
+  const num = Number(val) || 0;
+  if (num < 0) return `-₹${Math.abs(num).toFixed(2)}`;
+  return `₹${num.toFixed(2)}`;
+};
+
+const isNumericKey = (key) => {
+  return [
+    'sold', 'revenue', 'profit', 'cogs', 'stock', 'payout', 
+    'balance', 'issued', 'dispatches', 'dispatched', 'returned', 
+    'damaged', 'cash', 'amount', 'margin', 'cost', 'price'
+  ].includes(key);
+};
+
+const monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 export default function Reports() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -10,7 +32,12 @@ export default function Reports() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   const [loading, setLoading] = useState(false);
-  const [previewModal, setPreviewModal] = useState(null); // { title, columns, rows }
+  const [loadingReportId, setLoadingReportId] = useState(null);
+  const [previewModal, setPreviewModal] = useState(null); // { reportId, title, filterLabel, columns, rows, totalsRow, emptyMessage }
+
+  // Sorting state for Preview modal table
+  const [sortColumn, setSortColumn] = useState(null);
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Report Types Config
   const reportsConfig = [
@@ -29,7 +56,7 @@ export default function Reports() {
     {
       id: 'product_sales',
       name: "Product-wise Sales",
-      desc: "Sales volume, gross revenue, cost of goods, and net margin performance per product.",
+      desc: "Sales volume, gross revenue, cost of goods (COGS), net profit, and net margin performance per product.",
       icon: "📦"
     },
     {
@@ -78,11 +105,20 @@ export default function Reports() {
       ]);
 
       let title = "";
+      let filterLabel = "";
+      let emptyMessage = "";
       let columns = [];
       let rows = [];
+      let totalsRow = null;
 
+      const currentMonthName = monthNames[selectedMonth - 1] || 'Unknown Month';
+
+      // 1. DAILY SALES REPORT
       if (reportId === 'daily_sales') {
         title = `Daily Sales Report (${selectedDate})`;
+        filterLabel = `Specific Date: ${selectedDate}`;
+        emptyMessage = `No sales or dispatch records found for ${selectedDate}. Try selecting a different date from the filter controls.`;
+
         columns = [
           { header: 'Date', key: 'date' },
           { header: 'Hawker', key: 'hawker' },
@@ -109,14 +145,48 @@ export default function Reports() {
             returned: log.returned_qty,
             damaged: log.damaged_qty || 0,
             sold: log.sold_qty,
-            price: `₹${p.selling_price.toFixed(2)}`,
-            revenue: `₹${log.gross_revenue.toFixed(2)}`
+            price: formatCurrency(p.selling_price),
+            revenue: formatCurrency(log.gross_revenue),
+            raw_dispatched: log.dispatched_qty || 0,
+            raw_returned: log.returned_qty || 0,
+            raw_damaged: log.damaged_qty || 0,
+            raw_sold: log.sold_qty || 0,
+            raw_price: p.selling_price || 0,
+            raw_revenue: log.gross_revenue || 0,
+            isZeroSales: log.sold_qty === 0
           };
         });
+
+        if (rows.length > 0) {
+          const uniqueHawkers = new Set(rows.map(r => r.hawker)).size;
+          const sumDispatched = rows.reduce((sum, r) => sum + r.raw_dispatched, 0);
+          const sumReturned = rows.reduce((sum, r) => sum + r.raw_returned, 0);
+          const sumDamaged = rows.reduce((sum, r) => sum + r.raw_damaged, 0);
+          const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
+          const sumRevenue = rows.reduce((sum, r) => sum + r.raw_revenue, 0);
+
+          totalsRow = {
+            date: 'TOTAL',
+            hawker: `${uniqueHawkers} Hawkers`,
+            route: '—',
+            product: `${rows.length} Dispatches`,
+            dispatched: sumDispatched,
+            returned: sumReturned,
+            damaged: sumDamaged,
+            sold: sumSold,
+            price: '—',
+            revenue: formatCurrency(sumRevenue),
+            isTotal: true
+          };
+        }
       }
 
+      // 2. MONTHLY SALES REPORT
       else if (reportId === 'monthly_sales') {
-        title = `Monthly Sales Report (${selectedMonth}/${selectedYear})`;
+        title = `Monthly Sales Report (${currentMonthName} ${selectedYear})`;
+        filterLabel = `Month: ${currentMonthName} ${selectedYear}`;
+        emptyMessage = `No sales data found for ${currentMonthName} ${selectedYear}. Try selecting a different month or year above.`;
+
         columns = [
           { header: 'Date', key: 'date' },
           { header: 'Dispatches Count', key: 'dispatches' },
@@ -152,14 +222,45 @@ export default function Reports() {
           dispatches: g.dispatches,
           issued: g.issued,
           sold: g.sold,
-          revenue: `₹${g.revenue.toFixed(2)}`,
-          payout: `₹${g.payout.toFixed(2)}`,
-          profit: `₹${g.profit.toFixed(2)}`
+          revenue: formatCurrency(g.revenue),
+          payout: formatCurrency(g.payout),
+          profit: formatCurrency(g.profit),
+          raw_dispatches: g.dispatches,
+          raw_issued: g.issued,
+          raw_sold: g.sold,
+          raw_revenue: g.revenue,
+          raw_payout: g.payout,
+          raw_profit: g.profit,
+          isZeroSales: g.sold === 0
         }));
+
+        if (rows.length > 0) {
+          const sumDispatches = rows.reduce((sum, r) => sum + r.raw_dispatches, 0);
+          const sumIssued = rows.reduce((sum, r) => sum + r.raw_issued, 0);
+          const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
+          const sumRevenue = rows.reduce((sum, r) => sum + r.raw_revenue, 0);
+          const sumPayout = rows.reduce((sum, r) => sum + r.raw_payout, 0);
+          const sumProfit = rows.reduce((sum, r) => sum + r.raw_profit, 0);
+
+          totalsRow = {
+            date: `TOTAL (${rows.length} Days)`,
+            dispatches: sumDispatches,
+            issued: sumIssued,
+            sold: sumSold,
+            revenue: formatCurrency(sumRevenue),
+            payout: formatCurrency(sumPayout),
+            profit: formatCurrency(sumProfit),
+            isTotal: true
+          };
+        }
       }
 
+      // 3. PRODUCT-WISE SALES REPORT
       else if (reportId === 'product_sales') {
-        title = `Product-wise Sales Report`;
+        title = `Product-wise Sales Performance Report`;
+        filterLabel = `All Products (Catalog Performance)`;
+        emptyMessage = `No product records found in the database.`;
+
         columns = [
           { header: 'Product ID', key: 'id' },
           { header: 'Product Name', key: 'name' },
@@ -169,31 +270,79 @@ export default function Reports() {
           { header: 'Current Stock', key: 'stock' },
           { header: 'Units Sold', key: 'sold' },
           { header: 'Gross Revenue', key: 'revenue' },
-          { header: 'Net Profit', key: 'profit' }
+          { header: 'COGS', key: 'cogs' },
+          { header: 'Net Profit', key: 'profit' },
+          { header: 'Net Margin %', key: 'margin' }
         ];
 
         rows = products.map(p => {
           const pLogs = logs.filter(l => l.product_id === p.id);
           const totalSold = pLogs.reduce((sum, l) => sum + (l.sold_qty || 0), 0);
           const totalRev = pLogs.reduce((sum, l) => sum + (l.gross_revenue || 0), 0);
-          const totalProfit = pLogs.reduce((sum, l) => sum + (l.net_profit || 0), 0);
+          
+          // Cost of Goods Sold = Base Cost * Units Sold
+          const cogs = (p.base_cost || 0) * totalSold;
+          // Net Profit = (Selling Price - Base Cost) * Units Sold
+          const netProfit = ((p.selling_price || 0) - (p.base_cost || 0)) * totalSold;
+          // Net Margin % = (Net Profit / Gross Revenue) * 100
+          const netMargin = totalRev > 0 ? (netProfit / totalRev) * 100 : 0;
 
           return {
             id: `#${p.id}`,
             name: p.name,
             category: p.category || 'General',
-            cost: `₹${p.base_cost.toFixed(2)}`,
-            price: `₹${p.selling_price.toFixed(2)}`,
+            cost: formatCurrency(p.base_cost),
+            price: formatCurrency(p.selling_price),
             stock: p.current_stock,
             sold: totalSold,
-            revenue: `₹${totalRev.toFixed(2)}`,
-            profit: `₹${totalProfit.toFixed(2)}`
+            revenue: formatCurrency(totalRev),
+            cogs: formatCurrency(cogs),
+            profit: formatCurrency(netProfit),
+            margin: `${netMargin.toFixed(1)}%`,
+            raw_id: p.id,
+            raw_cost: p.base_cost || 0,
+            raw_price: p.selling_price || 0,
+            raw_stock: p.current_stock || 0,
+            raw_sold: totalSold,
+            raw_revenue: totalRev,
+            raw_cogs: cogs,
+            raw_profit: netProfit,
+            raw_margin: netMargin,
+            isZeroSales: totalSold === 0
           };
         });
+
+        if (rows.length > 0) {
+          const sumStock = products.reduce((sum, p) => sum + (p.current_stock || 0), 0);
+          const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
+          const sumRevenue = rows.reduce((sum, r) => sum + r.raw_revenue, 0);
+          const sumCogs = rows.reduce((sum, r) => sum + r.raw_cogs, 0);
+          const sumProfit = rows.reduce((sum, r) => sum + r.raw_profit, 0);
+          const overallMargin = sumRevenue > 0 ? (sumProfit / sumRevenue) * 100 : 0;
+
+          totalsRow = {
+            id: 'TOTAL',
+            name: `${rows.length} Products`,
+            category: '—',
+            cost: '—',
+            price: '—',
+            stock: sumStock,
+            sold: sumSold,
+            revenue: formatCurrency(sumRevenue),
+            cogs: formatCurrency(sumCogs),
+            profit: formatCurrency(sumProfit),
+            margin: `${overallMargin.toFixed(1)}%`,
+            isTotal: true
+          };
+        }
       }
 
+      // 4. HAWKER PERFORMANCE REPORT
       else if (reportId === 'hawker_performance') {
-        title = `Hawker Performance Report`;
+        title = `Hawker Performance & Ledger Report`;
+        filterLabel = `All Registered Hawkers`;
+        emptyMessage = `No hawkers found in the database.`;
+
         columns = [
           { header: 'Hawker ID', key: 'id' },
           { header: 'Hawker Name', key: 'name' },
@@ -217,15 +366,44 @@ export default function Reports() {
             route: h.route || 'General Route',
             status: h.status ? 'Active' : 'Inactive',
             sold: totalSold,
-            revenue: `₹${totalRev.toFixed(2)}`,
-            payout: `₹${totalPayout.toFixed(2)}`,
-            balance: `₹${h.balance.toFixed(2)}`
+            revenue: formatCurrency(totalRev),
+            payout: formatCurrency(totalPayout),
+            balance: formatCurrency(h.balance || 0),
+            raw_id: h.id,
+            raw_sold: totalSold,
+            raw_revenue: totalRev,
+            raw_payout: totalPayout,
+            raw_balance: h.balance || 0,
+            isZeroSales: totalSold === 0
           };
         });
+
+        if (rows.length > 0) {
+          const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
+          const sumRevenue = rows.reduce((sum, r) => sum + r.raw_revenue, 0);
+          const sumPayout = rows.reduce((sum, r) => sum + r.raw_payout, 0);
+          const sumBalance = rows.reduce((sum, r) => sum + r.raw_balance, 0);
+
+          totalsRow = {
+            id: 'TOTAL',
+            name: `${rows.length} Hawkers`,
+            route: '—',
+            status: '—',
+            sold: sumSold,
+            revenue: formatCurrency(sumRevenue),
+            payout: formatCurrency(sumPayout),
+            balance: formatCurrency(sumBalance),
+            isTotal: true
+          };
+        }
       }
 
+      // 5. INVENTORY & STOCK CATALOG REPORT
       else if (reportId === 'inventory_report') {
         title = `Inventory & Stock Catalog Report`;
+        filterLabel = `Current Warehouse & Van Stock`;
+        emptyMessage = `No inventory items found.`;
+
         columns = [
           { header: 'ID', key: 'id' },
           { header: 'Product Name', key: 'name' },
@@ -243,16 +421,42 @@ export default function Reports() {
           name: p.name,
           category: p.category || 'General',
           barcode: p.barcode || '-',
-          cost: `₹${p.base_cost.toFixed(2)}`,
-          price: `₹${p.selling_price.toFixed(2)}`,
+          cost: formatCurrency(p.base_cost),
+          price: formatCurrency(p.selling_price),
           stock: p.current_stock,
-          alert: p.current_stock <= p.min_stock_alert ? 'LOW STOCK' : 'IN STOCK',
-          expiry: p.expiry_date || 'N/A'
+          alert: p.current_stock <= (p.min_stock_alert || 10) ? 'LOW STOCK' : 'IN STOCK',
+          expiry: p.expiry_date || 'N/A',
+          raw_id: p.id,
+          raw_cost: p.base_cost || 0,
+          raw_price: p.selling_price || 0,
+          raw_stock: p.current_stock || 0
         }));
+
+        if (rows.length > 0) {
+          const sumStock = rows.reduce((sum, r) => sum + r.raw_stock, 0);
+          const lowStockCount = rows.filter(r => r.alert === 'LOW STOCK').length;
+
+          totalsRow = {
+            id: 'TOTAL',
+            name: `${rows.length} Products`,
+            category: '—',
+            barcode: '—',
+            cost: '—',
+            price: '—',
+            stock: sumStock,
+            alert: `${lowStockCount} Low Stock`,
+            expiry: '—',
+            isTotal: true
+          };
+        }
       }
 
+      // 6. RETURNS & DAMAGED PRODUCTS REPORT
       else if (reportId === 'returns_report') {
         title = `Evening Returns & Damaged Products Report`;
+        filterLabel = `Unsold Returns & Damage Ledger`;
+        emptyMessage = `No returns or damage logs recorded yet.`;
+
         columns = [
           { header: 'Date', key: 'date' },
           { header: 'Hawker', key: 'hawker' },
@@ -279,13 +483,43 @@ export default function Reports() {
             damaged: log.damaged_qty || 0,
             sold: log.sold_qty,
             remarks: log.remarks || '-',
-            cash: `₹${log.cash_collected.toFixed(2)}`
+            cash: formatCurrency(log.cash_collected),
+            raw_dispatched: log.dispatched_qty || 0,
+            raw_returned: log.returned_qty || 0,
+            raw_damaged: log.damaged_qty || 0,
+            raw_sold: log.sold_qty || 0,
+            raw_cash: log.cash_collected || 0
           };
         });
+
+        if (rows.length > 0) {
+          const sumDispatched = rows.reduce((sum, r) => sum + r.raw_dispatched, 0);
+          const sumReturned = rows.reduce((sum, r) => sum + r.raw_returned, 0);
+          const sumDamaged = rows.reduce((sum, r) => sum + r.raw_damaged, 0);
+          const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
+          const sumCash = rows.reduce((sum, r) => sum + r.raw_cash, 0);
+
+          totalsRow = {
+            date: 'TOTAL',
+            hawker: '—',
+            product: `${rows.length} Logs`,
+            dispatched: sumDispatched,
+            returned: sumReturned,
+            damaged: sumDamaged,
+            sold: sumSold,
+            remarks: '—',
+            cash: formatCurrency(sumCash),
+            isTotal: true
+          };
+        }
       }
 
+      // 7. PROFIT & LOSS ANALYSIS REPORT
       else if (reportId === 'profit_report') {
         title = `Profit & Loss Analysis Report`;
+        filterLabel = `Cumulative Financial Overview`;
+        emptyMessage = `No financial activity recorded yet.`;
+
         columns = [
           { header: 'Item / Category', key: 'item' },
           { header: 'Type', key: 'type' },
@@ -306,32 +540,49 @@ export default function Reports() {
           {
             item: 'Total Product Sales (Cumulative)',
             type: 'Revenue Stream',
-            amount: `₹${totalGross.toFixed(2)}`,
-            cogs: `₹${totalCogs.toFixed(2)}`,
-            payout: `₹${totalPayout.toFixed(2)}`,
-            profit: `₹${totalSalesProfit.toFixed(2)}`
+            amount: formatCurrency(totalGross),
+            cogs: formatCurrency(totalCogs),
+            payout: formatCurrency(totalPayout),
+            profit: formatCurrency(totalSalesProfit),
+            raw_amount: totalGross,
+            raw_cogs: totalCogs,
+            raw_payout: totalPayout,
+            raw_profit: totalSalesProfit
           },
           {
             item: 'Operational Expenses (Total)',
             type: 'Operational Expense',
-            amount: `₹${totalExp.toFixed(2)}`,
-            cogs: '-',
-            payout: '-',
-            profit: `-₹${totalExp.toFixed(2)}`
+            amount: formatCurrency(totalExp),
+            cogs: '—',
+            payout: '—',
+            profit: formatCurrency(-totalExp),
+            raw_amount: totalExp,
+            raw_cogs: 0,
+            raw_payout: 0,
+            raw_profit: -totalExp
           },
           {
             item: 'OVERALL NET SYSTEM PROFIT',
             type: 'Net Performance',
-            amount: `₹${totalGross.toFixed(2)}`,
-            cogs: `₹${totalCogs.toFixed(2)}`,
-            payout: `₹${totalPayout.toFixed(2)}`,
-            profit: `₹${(totalSalesProfit - totalExp).toFixed(2)}`
+            amount: formatCurrency(totalGross),
+            cogs: formatCurrency(totalCogs),
+            payout: formatCurrency(totalPayout),
+            profit: formatCurrency(totalSalesProfit - totalExp),
+            raw_amount: totalGross,
+            raw_cogs: totalCogs,
+            raw_payout: totalPayout,
+            raw_profit: totalSalesProfit - totalExp,
+            isHighlight: true
           }
         ];
       }
 
+      // 8. COLLECTIONS LEDGER REPORT
       else if (reportId === 'collection_report') {
         title = `Hawker Collections Ledger Report`;
+        filterLabel = `Collections & Evening Settlements`;
+        emptyMessage = `No collection transactions recorded.`;
+
         columns = [
           { header: 'Ref ID', key: 'id' },
           { header: 'Date', key: 'date' },
@@ -349,7 +600,8 @@ export default function Reports() {
             hawker: h.name,
             method: c.payment_method || 'Cash',
             type: 'Direct Collection',
-            amount: `₹${c.amount.toFixed(2)}`
+            amount: formatCurrency(c.amount),
+            raw_amount: c.amount || 0
           };
         });
 
@@ -361,15 +613,29 @@ export default function Reports() {
             hawker: h.name,
             method: 'Cash Settlement',
             type: 'Evening Return Settlement',
-            amount: `₹${l.cash_collected.toFixed(2)}`
+            amount: formatCurrency(l.cash_collected),
+            raw_amount: l.cash_collected || 0
           };
         });
 
         rows = [...list1, ...list2].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        if (rows.length > 0) {
+          const sumAmount = rows.reduce((sum, r) => sum + r.raw_amount, 0);
+          totalsRow = {
+            id: 'TOTAL',
+            date: '—',
+            hawker: '—',
+            method: '—',
+            type: `${rows.length} Collections`,
+            amount: formatCurrency(sumAmount),
+            isTotal: true
+          };
+        }
       }
 
       setLoading(false);
-      return { title, columns, rows };
+      return { reportId, title, filterLabel, emptyMessage, columns, rows, totalsRow };
     } catch (e) {
       console.error(e);
       setLoading(false);
@@ -378,17 +644,26 @@ export default function Reports() {
     }
   };
 
-  // Export Handlers
+  // Export to Excel with Totals Row
   const handleExportExcel = async (reportId) => {
+    setLoading(true);
+    setLoadingReportId(reportId);
     const data = await fetchReportData(reportId);
+    setLoading(false);
+    setLoadingReportId(null);
     if (!data) return;
 
     const wsData = [
       [data.title],
+      [`Filter: ${data.filterLabel}`],
       [`Generated: ${new Date().toLocaleString()}`],
       [],
       data.columns.map(c => c.header),
-      ...data.rows.map(r => data.columns.map(c => r[c.key]))
+      ...data.rows.map(r => data.columns.map(c => r[c.key])),
+      ...(data.totalsRow ? [
+        [], // empty separator row
+        data.columns.map(c => data.totalsRow[c.key] ?? '')
+      ] : [])
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(wsData);
@@ -397,73 +672,166 @@ export default function Reports() {
     XLSX.writeFile(workbook, `${data.title.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
   };
 
+  // Export to PDF with Totals Row
   const handleExportPDF = async (reportId) => {
+    setLoading(true);
+    setLoadingReportId(reportId);
     const data = await fetchReportData(reportId);
+    setLoading(false);
+    setLoadingReportId(null);
     if (!data) return;
 
-    const doc = new jsPDF();
+    const isLandscape = data.columns.length > 7;
+    const doc = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait' });
+    const pageWidth = isLandscape ? 297 : 210;
     
     // Header Banner
-    doc.setFillColor(30, 41, 59); // Dark blue header background
-    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFillColor(24, 56, 51); // Dark green brand header
+    doc.rect(0, 0, pageWidth, 28, 'F');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(data.title.toUpperCase(), 14, 18);
+    doc.text(data.title.toUpperCase(), 14, 13);
     
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Generated on: ${new Date().toLocaleString()} | Inventory Management System`, 14, 25);
+    doc.text(`Filter: ${data.filterLabel}  |  Generated on: ${new Date().toLocaleString()}  |  IMS Business Intelligence`, 14, 21);
 
     // Table Content
-    let y = 40;
-    doc.setFontSize(9);
+    let y = 38;
+    doc.setFontSize(8);
+
+    const marginX = 10;
+    const tableWidth = pageWidth - (marginX * 2);
+    const colWidth = tableWidth / data.columns.length;
 
     // Header row
-    doc.setFillColor(241, 245, 249);
-    doc.rect(10, y - 5, 190, 8, 'F');
-    doc.setTextColor(15, 23, 42);
+    doc.setFillColor(236, 246, 244);
+    doc.rect(marginX, y - 5, tableWidth, 8, 'F');
+    doc.setTextColor(24, 56, 51);
     doc.setFont('helvetica', 'bold');
     
-    const colWidth = 190 / data.columns.length;
     data.columns.forEach((col, i) => {
-      doc.text(col.header.substring(0, 12), 12 + (i * colWidth), y);
+      const headerText = col.header.length > 15 ? col.header.substring(0, 14) + '..' : col.header;
+      doc.text(headerText, marginX + 2 + (i * colWidth), y);
     });
 
     y += 8;
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(51, 65, 85);
+    doc.setTextColor(40, 50, 60);
 
     data.rows.forEach((row, rowIndex) => {
-      if (y > 280) {
+      if (y > (isLandscape ? 190 : 275)) {
         doc.addPage();
         y = 20;
       }
 
       // Zebra striping
       if (rowIndex % 2 === 0) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(10, y - 5, 190, 7, 'F');
+        doc.setFillColor(248, 250, 250);
+        doc.rect(marginX, y - 5, tableWidth, 7, 'F');
       }
 
       data.columns.forEach((col, i) => {
-        const textVal = String(row[col.key] || '-');
-        doc.text(textVal.substring(0, 14), 12 + (i * colWidth), y);
+        const textVal = String(row[col.key] ?? '-');
+        const safeText = textVal.length > 17 ? textVal.substring(0, 16) + '.' : textVal;
+        doc.text(safeText, marginX + 2 + (i * colWidth), y);
       });
 
       y += 7;
     });
 
+    // Totals Row in PDF
+    if (data.totalsRow) {
+      if (y > (isLandscape ? 185 : 270)) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(220, 240, 236);
+      doc.rect(marginX, y - 5, tableWidth, 8, 'F');
+      doc.setTextColor(24, 56, 51);
+      doc.setFont('helvetica', 'bold');
+      data.columns.forEach((col, i) => {
+        const textVal = String(data.totalsRow[col.key] ?? '—');
+        const safeText = textVal.length > 17 ? textVal.substring(0, 16) + '.' : textVal;
+        doc.text(safeText, marginX + 2 + (i * colWidth), y);
+      });
+      y += 8;
+    }
+
     doc.save(`${data.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
   };
 
+  // Preview Data Handler
   const handlePreview = async (reportId) => {
+    setLoadingReportId(reportId);
     const data = await fetchReportData(reportId);
+    setLoadingReportId(null);
     if (data) {
       setPreviewModal(data);
+      // Sensible default sort per report
+      if (reportId === 'product_sales') {
+        setSortColumn('revenue');
+        setSortDirection('desc');
+      } else if (reportId === 'daily_sales') {
+        setSortColumn('sold');
+        setSortDirection('desc');
+      } else if (reportId === 'monthly_sales') {
+        setSortColumn('date');
+        setSortDirection('asc');
+      } else if (reportId === 'hawker_performance') {
+        setSortColumn('revenue');
+        setSortDirection('desc');
+      } else {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
     }
   };
+
+  // Column Header Sort Click Handler
+  const handleSort = (key) => {
+    if (sortColumn === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(key);
+      setSortDirection(isNumericKey(key) ? 'desc' : 'asc');
+    }
+  };
+
+  // Sorted Rows
+  const sortedRows = useMemo(() => {
+    if (!previewModal?.rows) return [];
+    if (!sortColumn) return previewModal.rows;
+
+    return [...previewModal.rows].sort((a, b) => {
+      const rawKey = `raw_${sortColumn}`;
+      const valA = a[rawKey] !== undefined ? a[rawKey] : a[sortColumn];
+      const valB = b[rawKey] !== undefined ? b[rawKey] : b[sortColumn];
+
+      if (valA === valB) return 0;
+      if (valA === null || valA === undefined) return 1;
+      if (valB === null || valB === undefined) return -1;
+
+      let comparison = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        comparison = valA - valB;
+      } else {
+        const cleanA = String(valA).replace(/[₹,%]/g, '').trim();
+        const cleanB = String(valB).replace(/[₹,%]/g, '').trim();
+        const numA = Number(cleanA);
+        const numB = Number(cleanB);
+        if (!isNaN(numA) && !isNaN(numB) && cleanA !== '' && cleanB !== '') {
+          comparison = numA - numB;
+        } else {
+          comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
+        }
+      }
+
+      return sortDirection === 'desc' ? -comparison : comparison;
+    });
+  }, [previewModal?.rows, sortColumn, sortDirection]);
 
   return (
     <div className="fade-in">
@@ -508,44 +876,52 @@ export default function Reports() {
 
       {/* 8 Required Reports Cards Grid */}
       <div className="grid-cols-2" style={{ display: 'grid', gap: '1.5rem' }}>
-        {reportsConfig.map((rep) => (
-          <div key={rep.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid var(--border-color)' }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
-                  <span style={{ fontSize: '1.25rem' }}>{rep.icon}</span> {rep.name}
-                </h3>
-              </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.5' }}>
-                {rep.desc}
-              </p>
-            </div>
+        {reportsConfig.map((rep) => {
+          const isCurrentLoading = loading && loadingReportId === rep.id;
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button 
-                className="btn btn-secondary" 
-                style={{ flex: 1, padding: '0.5rem 0.6rem', fontSize: '0.85rem' }} 
-                onClick={() => handlePreview(rep.id)}
-              >
-                <Eye size={14} /> Preview Data
-              </button>
-              <button 
-                className="btn btn-secondary" 
-                style={{ flex: 1, padding: '0.5rem 0.6rem', fontSize: '0.85rem', color: 'var(--accent-color)', borderColor: 'var(--accent-color)' }} 
-                onClick={() => handleExportPDF(rep.id)}
-              >
-                <Download size={14} /> PDF Report
-              </button>
-              <button 
-                className="btn btn-success" 
-                style={{ flex: 1, padding: '0.5rem 0.6rem', fontSize: '0.85rem' }} 
-                onClick={() => handleExportExcel(rep.id)}
-              >
-                <FileSpreadsheet size={14} /> Excel (.xlsx)
-              </button>
+          return (
+            <div key={rep.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid var(--border-color)' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>{rep.icon}</span> {rep.name}
+                  </h3>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.5' }}>
+                  {rep.desc}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  disabled={loading}
+                  style={{ flex: 1, padding: '0.55rem 0.6rem', fontSize: '0.85rem' }} 
+                  onClick={() => handlePreview(rep.id)}
+                >
+                  {isCurrentLoading ? <RefreshCw size={14} className="spin" /> : <Eye size={14} />} 
+                  {isCurrentLoading ? 'Loading...' : 'Preview Data'}
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  disabled={loading}
+                  style={{ flex: 1, padding: '0.55rem 0.6rem', fontSize: '0.85rem', color: 'var(--accent-color)', borderColor: 'var(--accent-color)' }} 
+                  onClick={() => handleExportPDF(rep.id)}
+                >
+                  <Download size={14} /> PDF Report
+                </button>
+                <button 
+                  className="btn btn-success" 
+                  disabled={loading}
+                  style={{ flex: 1, padding: '0.55rem 0.6rem', fontSize: '0.85rem' }} 
+                  onClick={() => handleExportExcel(rep.id)}
+                >
+                  <FileSpreadsheet size={14} /> Excel (.xlsx)
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Data Preview Modal */}
@@ -556,62 +932,234 @@ export default function Reports() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
+          background: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000,
           padding: '1.5rem'
         }}>
-          <div className="card" style={{ maxWidth: '900px', width: '100%', border: '1px solid var(--accent-color)', position: 'relative', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="card" style={{ 
+            maxWidth: '1200px', 
+            width: '95vw', 
+            border: '1.5px solid var(--accent-color)', 
+            position: 'relative', 
+            maxHeight: '90vh', 
+            display: 'flex', 
+            flexDirection: 'column',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+            borderRadius: '16px'
+          }}>
             <button 
               onClick={() => setPreviewModal(null)} 
-              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              title="Close Preview"
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', zIndex: 20 }}
             >
-              <X size={20} />
+              <X size={22} />
             </button>
 
-            <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1rem' }}>
+            {/* Modal Header */}
+            <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1rem', paddingRight: '2rem' }}>
               <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText color="var(--accent-color)" size={22}/> Preview: {previewModal.title}
               </h2>
-              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Showing {previewModal.rows.length} records prepared for download.
-              </p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
+                <span className="badge info" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', padding: '0.2rem 0.65rem' }}>
+                  <Calendar size={13} /> Showing data for: <strong>{previewModal.filterLabel}</strong>
+                </span>
+                <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                  • {previewModal.rows.length} {previewModal.rows.length === 1 ? 'record' : 'records'} found
+                </span>
+                {sortColumn && (
+                  <span style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', background: '#F1F5F9', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                    Sorted by: <strong>{previewModal.columns.find(c => c.key === sortColumn)?.header || sortColumn}</strong> ({sortDirection === 'asc' ? 'Ascending' : 'Descending'})
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-              <table>
-                <thead>
-                  <tr>
-                    {previewModal.columns.map(col => (
-                      <th key={col.key}>{col.header}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewModal.rows.map((row, idx) => (
-                    <tr key={idx}>
-                      {previewModal.columns.map(col => (
-                        <td key={col.key} style={{ fontWeight: col.key.includes('revenue') || col.key.includes('profit') ? 600 : 400 }}>
-                          {row[col.key]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-
-                  {previewModal.rows.length === 0 && (
+            {/* Modal Table Content */}
+            {sortedRows.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: 'var(--text-secondary)', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ padding: '1rem', borderRadius: '50%', background: '#F1F5F9', marginBottom: '1rem' }}>
+                  <Calendar size={36} color="var(--accent-color)" />
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                  No records found
+                </div>
+                <p style={{ maxWidth: '440px', margin: '0 auto', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                  {previewModal.emptyMessage || `No data matches the selected filter (${previewModal.filterLabel}). Try adjusting the date, month, or year filter above.`}
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowY: 'auto', overflowX: 'auto', flex: 1, maxHeight: '60vh', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                <table style={{ margin: 0, width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                     <tr>
-                      <td colSpan={previewModal.columns.length} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                        No data available for the selected report filters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      {previewModal.columns.map(col => {
+                        const isNum = isNumericKey(col.key);
+                        const isCurrentSort = sortColumn === col.key;
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                        return (
+                          <th 
+                            key={col.key}
+                            onClick={() => handleSort(col.key)}
+                            title={`Click to sort by ${col.header}`}
+                            style={{ 
+                              position: 'sticky', 
+                              top: 0, 
+                              background: '#F0F7F6', 
+                              zIndex: 10,
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              whiteSpace: 'nowrap',
+                              padding: '0.75rem 0.85rem',
+                              borderBottom: '2px solid var(--border-color)',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+                              textAlign: isNum ? 'right' : 'left'
+                            }}
+                          >
+                            <div style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '0.35rem', 
+                              justifyContent: isNum ? 'flex-end' : 'flex-start',
+                              width: '100%'
+                            }}>
+                              <span>{col.header}</span>
+                              {isCurrentSort ? (
+                                sortDirection === 'asc' ? <ArrowUp size={13} color="var(--accent-color)" /> : <ArrowDown size={13} color="var(--accent-color)" />
+                              ) : (
+                                <ArrowUpDown size={12} style={{ opacity: 0.3 }} />
+                              )}
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {sortedRows.map((row, idx) => {
+                      const isZero = row.isZeroSales;
+
+                      return (
+                        <tr 
+                          key={idx}
+                          style={{ 
+                            backgroundColor: row.isHighlight ? 'rgba(45, 212, 191, 0.12)' : isZero ? 'rgba(241, 245, 249, 0.55)' : (idx % 2 === 0 ? '#FFFFFF' : '#FAFCFB'),
+                            color: isZero ? '#94A3B8' : 'inherit',
+                            fontWeight: row.isHighlight ? 700 : 400
+                          }}
+                        >
+                          {previewModal.columns.map(col => {
+                            const isNum = isNumericKey(col.key);
+
+                            return (
+                              <td 
+                                key={col.key} 
+                                style={{ 
+                                  padding: '0.65rem 0.85rem',
+                                  whiteSpace: 'nowrap',
+                                  textAlign: isNum ? 'right' : 'left',
+                                  fontWeight: (col.key.includes('revenue') || col.key.includes('profit') || col.key === 'sold') ? 700 : 400,
+                                  color: isZero && (col.key === 'sold' || col.key.includes('revenue')) ? '#94A3B8' : undefined
+                                }}
+                              >
+                                {col.key === 'sold' && isZero ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                                    <span>0</span>
+                                    <span className="badge" style={{ 
+                                      background: '#F1F5F9', 
+                                      color: '#64748B', 
+                                      fontSize: '0.675rem', 
+                                      padding: '0.12rem 0.4rem', 
+                                      borderRadius: '4px',
+                                      border: '1px solid #E2E8F0',
+                                      fontWeight: 600
+                                    }}>
+                                      No sales
+                                    </span>
+                                  </span>
+                                ) : col.key === 'margin' && !isZero ? (
+                                  <span style={{ 
+                                    color: (row.raw_margin || 0) > 20 ? 'var(--success-color)' : (row.raw_margin || 0) > 0 ? 'var(--warning-color)' : 'var(--danger-color)',
+                                    fontWeight: 700 
+                                  }}>
+                                    {row[col.key]}
+                                  </span>
+                                ) : (
+                                  row[col.key]
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+
+                  {/* Sticky Summary / Totals Row */}
+                  {previewModal.totalsRow && sortedRows.length > 0 && (
+                    <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 9 }}>
+                      <tr style={{ 
+                        background: '#E2F1EF', 
+                        borderTop: '2px solid var(--accent-color)', 
+                        fontWeight: 800,
+                        color: 'var(--text-primary)' 
+                      }}>
+                        {previewModal.columns.map(col => {
+                          const isNum = isNumericKey(col.key);
+
+                          return (
+                            <td 
+                              key={col.key}
+                              style={{ 
+                                position: 'sticky',
+                                bottom: 0,
+                                background: '#E2F1EF',
+                                padding: '0.75rem 0.85rem',
+                                whiteSpace: 'nowrap',
+                                textAlign: isNum ? 'right' : 'left',
+                                fontWeight: 800,
+                                fontSize: '0.875rem',
+                                color: 'var(--text-primary)',
+                                borderTop: '2px solid var(--accent-color)',
+                                boxShadow: '0 -2px 4px rgba(0,0,0,0.06)'
+                              }}
+                            >
+                              {previewModal.totalsRow[col.key] ?? '—'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            )}
+
+            {/* Modal Actions Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem', color: 'var(--accent-color)', borderColor: 'var(--accent-color)' }}
+                  onClick={() => handleExportPDF(previewModal.reportId)}
+                >
+                  <Download size={14} /> Export PDF
+                </button>
+                <button 
+                  className="btn btn-success" 
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+                  onClick={() => handleExportExcel(previewModal.reportId)}
+                >
+                  <FileSpreadsheet size={14} /> Export Excel (.xlsx)
+                </button>
+              </div>
+
               <button className="btn btn-secondary" onClick={() => setPreviewModal(null)}>
                 Close Preview
               </button>

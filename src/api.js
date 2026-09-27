@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://value-working-announce-barn.trycloudflare.com';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'https://value-working-announce-barn.trycloudflare.com';
+const API_URL = rawApiUrl.replace(/\/docs\/?$/, '').replace(/\/+$/, '');
 
 export const api = {
   get: async (endpoint) => {

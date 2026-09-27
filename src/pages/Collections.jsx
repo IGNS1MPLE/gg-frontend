@@ -11,7 +11,7 @@ export default function Collections() {
     date: new Date().toISOString().split('T')[0],
     hawker_id: '',
     amount: '',
-    payment_method: 'Cash'
+    payment_method: ''
   });
 
   const fetchData = async () => {
@@ -22,9 +22,6 @@ export default function Collections() {
       ]);
       setHawkers(hawkersRes);
       setCollections(colRes);
-      if (hawkersRes.length > 0 && !newCollection.hawker_id) {
-        setNewCollection(prev => ({ ...prev, hawker_id: hawkersRes[0].id }));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -48,13 +45,32 @@ export default function Collections() {
 
   const handleCollection = async (e) => {
     e.preventDefault();
+    if (!newCollection.hawker_id) {
+      alert('Please select a hawker');
+      return;
+    }
+    const amt = parseFloat(newCollection.amount);
+    if (!amt || amt <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+    if (!newCollection.payment_method) {
+      alert('Please select a payment method');
+      return;
+    }
+
     try {
       await api.post('/collections/', {
         ...newCollection,
-        amount: parseFloat(newCollection.amount)
+        amount: amt
       });
       setShowAddForm(false);
-      setNewCollection(prev => ({ ...prev, amount: '' }));
+      setNewCollection({
+        date: new Date().toISOString().split('T')[0],
+        hawker_id: '',
+        amount: '',
+        payment_method: ''
+      });
       fetchData(); // refresh balances
       alert('Payment collected successfully!');
     } catch (e) {
@@ -99,22 +115,23 @@ export default function Collections() {
                     sublabel: h.balance < 0 ? `Owes ₹${Math.abs(h.balance).toFixed(2)}` : (h.balance > 0 ? `Credit ₹${h.balance.toFixed(2)}` : 'Settled')
                   }))}
                   value={newCollection.hawker_id}
-                  onChange={(val) => val && setNewCollection({...newCollection, hawker_id: parseInt(val)})}
+                  onChange={(val) => setNewCollection({...newCollection, hawker_id: val ? parseInt(val) : ''})}
                   placeholder="Search or select hawker..."
                   required
                   icon={User}
                 />
               </div>
               <div className="form-group">
-                <label>Amount Received (₹)</label>
-                <input required type="number" step="0.01" min="0.01" value={newCollection.amount} onChange={e => setNewCollection({...newCollection, amount: e.target.value})} />
+                <label>Amount Received (₹) *</label>
+                <input required type="number" step="0.01" min="0.01" placeholder="0.00" value={newCollection.amount} onChange={e => setNewCollection({...newCollection, amount: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Payment Method</label>
-                <select value={newCollection.payment_method} onChange={e => setNewCollection({...newCollection, payment_method: e.target.value})}>
-                  <option>Cash</option>
-                  <option>UPI / Online</option>
-                  <option>Bank Transfer</option>
+                <label>Payment Method *</label>
+                <select required value={newCollection.payment_method} onChange={e => setNewCollection({...newCollection, payment_method: e.target.value})}>
+                  <option value="">-- Select Payment Method --</option>
+                  <option value="Cash">Cash</option>
+                  <option value="UPI / Online">UPI / Online</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
                 </select>
               </div>
             </div>

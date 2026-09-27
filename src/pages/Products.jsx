@@ -12,7 +12,7 @@ export default function Products() {
   const [editingId, setEditingId] = useState(null);
   
   const defaultProduct = {
-    name: '', category: '', unit: 'Pcs', barcode: '', base_cost: '', selling_price: '', commission_rate: '', current_stock: '', min_stock_alert: '10', expiry_date: ''
+    name: '', category: '', unit: '', barcode: '', base_cost: '', selling_price: '', commission_rate: '', current_stock: '', min_stock_alert: '', expiry_date: ''
   };
   
   const [newProduct, setNewProduct] = useState(defaultProduct);
@@ -48,13 +48,6 @@ export default function Products() {
       setProducts(prodData);
       setCategories(catData);
       if (Array.isArray(unitData)) setUnitsList(unitData);
-
-      if (catData.length > 0 && !newProduct.category) {
-        setNewProduct(prev => ({ ...prev, category: catData[0].name }));
-      }
-      if (unitData.length > 0 && !newProduct.unit) {
-        setNewProduct(prev => ({ ...prev, unit: unitData[0].name }));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -66,6 +59,31 @@ export default function Products() {
 
   const handleAddOrEdit = async (e) => {
     e.preventDefault();
+    if (!newProduct.name?.trim()) {
+      alert('Please enter a product name');
+      return;
+    }
+    if (!newProduct.category) {
+      alert('Please select a category');
+      return;
+    }
+    if (!newProduct.unit) {
+      alert('Please select a product unit');
+      return;
+    }
+    if (newProduct.base_cost === '') {
+      alert('Please enter base cost');
+      return;
+    }
+    if (newProduct.selling_price === '') {
+      alert('Please enter selling price');
+      return;
+    }
+    if (newProduct.current_stock === '') {
+      alert('Please enter initial stock');
+      return;
+    }
+
     try {
       const payload = {
         ...newProduct,
@@ -77,6 +95,13 @@ export default function Products() {
         expiry_date: newProduct.expiry_date || null
       };
 
+      if (payload.base_cost > payload.selling_price) {
+        const proceed = window.confirm(
+          `Warning: Base Cost (₹${payload.base_cost.toFixed(2)}) is higher than Selling Price (₹${payload.selling_price.toFixed(2)}).\n\nThis will cause negative profit (a loss of ₹${(payload.base_cost - payload.selling_price).toFixed(2)} per unit sold).\n\nAre you sure you want to proceed?`
+        );
+        if (!proceed) return;
+      }
+
       if (editingId) {
         await api.put(`/products/${editingId}`, payload);
         alert('Product updated successfully!');
@@ -86,7 +111,7 @@ export default function Products() {
       }
       setShowAddForm(false);
       setEditingId(null);
-      setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General', unit: unitsList[0]?.name || 'Pcs' });
+      setNewProduct(defaultProduct);
       fetchData();
     } catch (e) {
       console.error(e);
@@ -127,7 +152,7 @@ export default function Products() {
   const handleCancel = () => {
     setShowAddForm(false);
     setEditingId(null);
-    setNewProduct({ ...defaultProduct, category: categories[0]?.name || 'General' });
+    setNewProduct(defaultProduct);
   };
 
   const filteredProducts = [...products]

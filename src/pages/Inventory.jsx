@@ -45,10 +45,6 @@ export default function Inventory() {
       setProducts(prodData);
       setPurchases(purData);
       setSuppliers(suppData);
-
-      if (prodData.length > 0 && !newPurchase.product_id) {
-        setNewPurchase(prev => ({ ...prev, product_id: prodData[0].id }));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -60,12 +56,26 @@ export default function Inventory() {
 
   const handlePurchase = async (e) => {
     e.preventDefault();
+    if (!newPurchase.product_id) {
+      alert('Please select a product');
+      return;
+    }
+    const qty = parseInt(newPurchase.quantity);
+    if (!qty || qty <= 0) {
+      alert('Please enter a valid quantity of at least 1');
+      return;
+    }
+    if (newPurchase.total_cost === '' || parseFloat(newPurchase.total_cost) < 0) {
+      alert('Please enter a valid total cost');
+      return;
+    }
+
     try {
       const selectedSupp = suppliers.find(s => s.id === parseInt(newPurchase.supplier_id));
       const payload = {
         ...newPurchase,
         product_id: parseInt(newPurchase.product_id),
-        quantity: parseInt(newPurchase.quantity) || 1,
+        quantity: qty,
         total_cost: parseFloat(newPurchase.total_cost) || 0,
         supplier: selectedSupp ? selectedSupp.name : newPurchase.supplier,
         supplier_id: selectedSupp ? selectedSupp.id : null,
@@ -76,7 +86,7 @@ export default function Inventory() {
       setShowPurchaseForm(false);
       setNewPurchase({
         date: new Date().toISOString().split('T')[0],
-        product_id: products[0]?.id || '',
+        product_id: '',
         quantity: '',
         total_cost: '',
         supplier: '',
@@ -240,7 +250,7 @@ export default function Inventory() {
                       products={products}
                       value={newPurchase.product_id}
                       onChange={val => setNewPurchase({...newPurchase, product_id: val})}
-                      placeholder="Search product name, category, or code..."
+                      placeholder="-- Search & Select Product --"
                       required
                     />
                   </div>
@@ -250,7 +260,7 @@ export default function Inventory() {
                   </div>
                   <div className="form-group">
                     <label>Quantity Added *</label>
-                    <input required type="number" min="1" placeholder="1" value={newPurchase.quantity} onChange={e => setNewPurchase({...newPurchase, quantity: e.target.value})} />
+                    <input required type="number" min="1" placeholder="Enter quantity" value={newPurchase.quantity} onChange={e => setNewPurchase({...newPurchase, quantity: e.target.value})} />
                   </div>
                   <div className="form-group">
                     <label>Total Cost (₹) *</label>
