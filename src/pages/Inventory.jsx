@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../api';
-import { PackagePlus, Search, Trash2, Users, AlertTriangle, Calendar, Plus, Edit, Phone, Mail, MapPin, Check, X, ShieldAlert, Clock, ArrowRight } from 'lucide-react';
+import { PackagePlus, Search, Trash2, Users, AlertTriangle, Calendar, Plus, Edit, Phone, Mail, MapPin, Check, X, ShieldAlert, Clock, ArrowRight, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import ProductSearchSelect from '../components/ProductSearchSelect';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -18,6 +18,7 @@ export default function Inventory() {
   const [newPurchase, setNewPurchase] = useState({
     date: new Date().toISOString().split('T')[0],
     product_id: '',
+    cost_per_unit: '',
     quantity: '',
     total_cost: '',
     supplier: '',
@@ -54,10 +55,100 @@ export default function Inventory() {
     fetchData();
   }, []);
 
+  // Currently selected product object
+  const selectedProduct = useMemo(() => {
+    if (!newPurchase.product_id) return null;
+    return products.find(p => p.id === parseInt(newPurchase.product_id));
+  }, [products, newPurchase.product_id]);
+
+  // Find most recent purchase batch for the selected product (by purchase date descending, then ID descending)
+  const lastPurchaseForProduct = useMemo(() => {
+    if (!newPurchase.product_id) return null;
+    const prodPurchases = purchases.filter(p => p.product_id === parseInt(newPurchase.product_id));
+    if (prodPurchases.length === 0) return null;
+
+    return [...prodPurchases].sort((a, b) => {
+      const dateDiff = new Date(b.date) - new Date(a.date);
+      if (dateDiff !== 0) return dateDiff;
+      return (b.id || 0) - (a.id || 0);
+    })[0];
+  }, [newPurchase.product_id, purchases]);
+
+  // Previous cost per unit: from last restock batch, or fallback to catalog base cost
+  const previousCostPerUnit = useMemo(() => {
+    if (lastPurchaseForProduct && lastPurchaseForProduct.quantity > 0) {
+      return lastPurchaseForProduct.total_cost / lastPurchaseForProduct.quantity;
+    }
+    if (selectedProduct && Number(selectedProduct.base_cost) > 0) {
+      return Number(selectedProduct.base_cost);
+    }
+    return null;
+  }, [lastPurchaseForProduct, selectedProduct]);
+
+  // Format date helper: DD-MM-YYYY
+  const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  };
+
+  // Live price change difference indicator (cheaper vs costlier)
+  const priceDiff = useMemo(() => {
+    if (previousCostPerUnit === null || previousCostPerUnit === undefined) return null;
+    const currentCost = parseFloat(newPurchase.cost_per_unit);
+    if (isNaN(currentCost) || currentCost <= 0) return null;
+
+    const diff = currentCost - previousCostPerUnit;
+    const absDiff = Math.abs(diff);
+    if (absDiff < 0.005) {
+      return { type: 'same', label: 'Same as previous cost' };
+    }
+    const percent = ((absDiff / previousCostPerUnit) * 100).toFixed(1);
+    if (diff < 0) {
+      return {
+        type: 'cheaper',
+        diff,
+        absDiff,
+        percent,
+        label: `↓ ₹${absDiff.toFixed(2)} cheaper (${percent}%)`
+      };
+    } else {
+      return {
+        type: 'costlier',
+        diff,
+        absDiff,
+        percent,
+        label: `↑ ₹${absDiff.toFixed(2)} costlier (${percent}%)`
+      };
+    }
+  }, [previousCostPerUnit, newPurchase.cost_per_unit]);
+
+  // Handle live auto-calculation of Total Cost = Cost Per Unit * Quantity
+  const handleCostOrQtyChange = (field, value) => {
+    const updated = { ...newPurchase, [field]: value };
+    const costPerUnit = field === 'cost_per_unit' ? parseFloat(value) : parseFloat(updated.cost_per_unit);
+    const qty = field === 'quantity' ? parseInt(value) : parseInt(updated.quantity);
+
+    if (!isNaN(costPerUnit) && costPerUnit >= 0 && !isNaN(qty) && qty > 0) {
+      updated.total_cost = (costPerUnit * qty).toFixed(2);
+    } else {
+      updated.total_cost = '';
+    }
+    setNewPurchase(updated);
+  };
+
   const handlePurchase = async (e) => {
     e.preventDefault();
     if (!newPurchase.product_id) {
       alert('Please select a product');
+      return;
+    }
+    const costPerUnit = parseFloat(newPurchase.cost_per_unit);
+    if (isNaN(costPerUnit) || costPerUnit < 0 || newPurchase.cost_per_unit === '') {
+      alert('Please enter a valid Cost Per Unit (₹)');
       return;
     }
     const qty = parseInt(newPurchase.quantity);
@@ -65,28 +156,42 @@ export default function Inventory() {
       alert('Please enter a valid quantity of at least 1');
       return;
     }
-    if (newPurchase.total_cost === '' || parseFloat(newPurchase.total_cost) < 0) {
-      alert('Please enter a valid total cost');
-      return;
-    }
+    const computedTotal = parseFloat(newPurchase.total_cost) || (costPerUnit * qty);
 
     try {
       const selectedSupp = suppliers.find(s => s.id === parseInt(newPurchase.supplier_id));
       const payload = {
-        ...newPurchase,
+        date: newPurchase.date,
         product_id: parseInt(newPurchase.product_id),
         quantity: qty,
-        total_cost: parseFloat(newPurchase.total_cost) || 0,
+        total_cost: parseFloat(computedTotal.toFixed(2)),
         supplier: selectedSupp ? selectedSupp.name : newPurchase.supplier,
         supplier_id: selectedSupp ? selectedSupp.id : null,
-        expiry_date: newPurchase.expiry_date || null
+        expiry_date: newPurchase.expiry_date || null,
+        notes: newPurchase.notes
       };
 
       await api.post('/purchases/', payload);
+
+      // Keep Base Cost in Catalog in sync with this latest restock's Cost Per Unit
+      try {
+        const prod = products.find(p => p.id === parseInt(newPurchase.product_id));
+        if (prod) {
+          await api.put(`/products/${prod.id}`, {
+            ...prod,
+            base_cost: parseFloat(costPerUnit.toFixed(2)),
+            ...(newPurchase.expiry_date ? { expiry_date: newPurchase.expiry_date } : {})
+          });
+        }
+      } catch (err) {
+        console.warn('Could not update product base_cost via API:', err);
+      }
+
       setShowPurchaseForm(false);
       setNewPurchase({
         date: new Date().toISOString().split('T')[0],
         product_id: '',
+        cost_per_unit: '',
         quantity: '',
         total_cost: '',
         supplier: '',
@@ -95,7 +200,7 @@ export default function Inventory() {
         notes: ''
       });
       fetchData();
-      alert('Stock purchase logged successfully!');
+      alert(`Stock purchase logged successfully! Base cost updated to ₹${costPerUnit.toFixed(2)}/unit.`);
     } catch (e) {
       console.error(e);
       alert('Failed to log purchase');
@@ -258,13 +363,139 @@ export default function Inventory() {
                     <label>Purchase Date *</label>
                     <input required type="date" value={newPurchase.date} onChange={e => setNewPurchase({...newPurchase, date: e.target.value})} />
                   </div>
+
+                  <div className="form-group">
+                    <label>Cost Per Unit (₹) *</label>
+                    <input 
+                      required 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={newPurchase.cost_per_unit} 
+                      onChange={e => handleCostOrQtyChange('cost_per_unit', e.target.value)} 
+                    />
+                    {newPurchase.product_id && (
+                      <div style={{ marginTop: '0.45rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {lastPurchaseForProduct ? (
+                          <>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              Previous cost: <strong style={{ color: 'var(--text-primary)' }}>₹{(lastPurchaseForProduct.total_cost / lastPurchaseForProduct.quantity).toFixed(2)}/unit</strong> (last restocked on {formatDisplayDate(lastPurchaseForProduct.date)})
+                            </span>
+                            {(!newPurchase.cost_per_unit || newPurchase.cost_per_unit === '') && (
+                              <button
+                                type="button"
+                                onClick={() => handleCostOrQtyChange('cost_per_unit', (lastPurchaseForProduct.total_cost / lastPurchaseForProduct.quantity).toFixed(2))}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid var(--accent-color)',
+                                  color: 'var(--accent-color)',
+                                  borderRadius: '4px',
+                                  padding: '0.1rem 0.4rem',
+                                  fontSize: '0.725rem',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                Use ₹{(lastPurchaseForProduct.total_cost / lastPurchaseForProduct.quantity).toFixed(2)}
+                              </button>
+                            )}
+                          </>
+                        ) : selectedProduct && Number(selectedProduct.base_cost) > 0 ? (
+                          <>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              No previous restock on record (Catalog Base Cost: <strong style={{ color: 'var(--text-primary)' }}>₹{Number(selectedProduct.base_cost).toFixed(2)}/unit</strong>)
+                            </span>
+                            {(!newPurchase.cost_per_unit || newPurchase.cost_per_unit === '') && (
+                              <button
+                                type="button"
+                                onClick={() => handleCostOrQtyChange('cost_per_unit', Number(selectedProduct.base_cost).toFixed(2))}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid var(--accent-color)',
+                                  color: 'var(--accent-color)',
+                                  borderRadius: '4px',
+                                  padding: '0.1rem 0.4rem',
+                                  fontSize: '0.725rem',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                Use ₹{Number(selectedProduct.base_cost).toFixed(2)}
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            No previous restock on record.
+                          </span>
+                        )}
+
+                        {/* Price change difference indicator */}
+                        {priceDiff && priceDiff.type !== 'same' && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.2rem',
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '4px',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            background: priceDiff.type === 'cheaper' ? '#DCFCE7' : '#FEE2E2',
+                            color: priceDiff.type === 'cheaper' ? '#15803D' : '#B91C1C',
+                            border: `1px solid ${priceDiff.type === 'cheaper' ? '#86EFAC' : '#FCA5A5'}`
+                          }}>
+                            {priceDiff.label}
+                          </span>
+                        )}
+                        {priceDiff && priceDiff.type === 'same' && (
+                          <span style={{
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '4px',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            background: '#F1F5F9',
+                            color: '#64748B',
+                            border: '1px solid #E2E8F0'
+                          }}>
+                            No price change
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="form-group">
                     <label>Quantity Added *</label>
-                    <input required type="number" min="1" placeholder="Enter quantity" value={newPurchase.quantity} onChange={e => setNewPurchase({...newPurchase, quantity: e.target.value})} />
+                    <input 
+                      required 
+                      type="number" 
+                      min="1" 
+                      placeholder="Enter quantity" 
+                      value={newPurchase.quantity} 
+                      onChange={e => handleCostOrQtyChange('quantity', e.target.value)} 
+                    />
                   </div>
+
                   <div className="form-group">
                     <label>Total Cost (₹) *</label>
-                    <input required type="number" step="0.01" placeholder="0.00" value={newPurchase.total_cost} onChange={e => setNewPurchase({...newPurchase, total_cost: e.target.value})} />
+                    <input 
+                      readOnly 
+                      disabled 
+                      type="text" 
+                      placeholder="0.00" 
+                      value={newPurchase.total_cost ? `₹${newPurchase.total_cost}` : ''} 
+                      style={{ 
+                        background: '#F1F5F9', 
+                        cursor: 'not-allowed', 
+                        color: 'var(--text-primary)', 
+                        fontWeight: 700,
+                        borderColor: '#CBD5E1'
+                      }} 
+                    />
+                    <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                      (auto-calculated)
+                    </small>
                   </div>
 
                   <div className="form-group">
@@ -317,6 +548,7 @@ export default function Inventory() {
                     <th>Date</th>
                     <th>Product</th>
                     <th>Qty Added</th>
+                    <th>Cost / Unit</th>
                     <th>Total Cost</th>
                     <th>Supplier</th>
                     <th>Expiry Date</th>
@@ -328,13 +560,15 @@ export default function Inventory() {
                   {purchases.slice().reverse().map(purchase => {
                     const product = products.find(p => p.id === purchase.product_id);
                     const expiryInfo = getExpiryStatus(purchase.expiry_date);
+                    const unitCost = purchase.quantity > 0 ? (purchase.total_cost / purchase.quantity) : 0;
 
                     return (
                       <tr key={purchase.id}>
                         <td>{purchase.date}</td>
                         <td style={{ fontWeight: 600 }}>{product ? product.name : `Product #${purchase.product_id}`}</td>
                         <td className="text-success" style={{ fontWeight: 600 }}>+{purchase.quantity}</td>
-                        <td>₹{purchase.total_cost.toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₹{unitCost.toFixed(2)}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--accent-color)' }}>₹{purchase.total_cost.toFixed(2)}</td>
                         <td>
                           {purchase.supplier ? (
                             <span style={{ fontWeight: 500 }}>{purchase.supplier}</span>
@@ -361,7 +595,7 @@ export default function Inventory() {
 
                   {purchases.length === 0 && (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                         No restock or purchase history found.
                       </td>
                     </tr>
