@@ -183,6 +183,16 @@ export default function UsersRoles() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            {search && (
+              <button 
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -202,10 +212,10 @@ export default function UsersRoles() {
               {filteredUsers.map(u => (
                 <tr key={u.id}>
                   <td>#{u.id}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.name}</td>
-                  <td>
+                  <td className="cell-truncate-md" title={u.name} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.name}</td>
+                  <td className="cell-truncate-md" title={u.email}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Mail size={14} color="var(--info-color)" /> {u.email}
+                      <Mail size={14} color="var(--info-color)" style={{ flexShrink: 0 }} /> <span className="truncate-text">{u.email}</span>
                     </span>
                   </td>
                   <td>

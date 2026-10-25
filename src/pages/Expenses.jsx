@@ -142,8 +142,8 @@ export default function Expenses() {
                 <tr key={expense.id}>
                   <td>{expense.date}</td>
                   <td><span className="badge info">{expense.category}</span></td>
-                  <td>{expense.description}</td>
-                  <td className="text-danger" style={{ fontWeight: 600 }}>-₹{expense.amount.toFixed(2)}</td>
+                  <td className="cell-truncate-lg" title={expense.description}>{expense.description}</td>
+                  <td className="text-danger" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>-₹{expense.amount.toFixed(2)}</td>
                   <td>
                     <button className="btn btn-secondary" style={{ padding: '0.5rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDelete(expense.id)}>
                       <Trash2 size={16} />

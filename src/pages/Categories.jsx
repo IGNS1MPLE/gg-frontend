@@ -153,6 +153,16 @@ export default function Categories() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            {search && (
+              <button 
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -178,10 +188,10 @@ export default function Categories() {
                     <td>
                       <span style={{ display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', background: cat.color_code || '#3b82f6' }}></span>
                     </td>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cat.name}</td>
-                    <td>{cat.description || '-'}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--info-color)' }}>{catProducts.length} Products</td>
-                    <td style={{ fontWeight: 600, color: 'var(--success-color)' }}>{totalStock} Units</td>
+                    <td className="cell-truncate-md" title={cat.name} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cat.name}</td>
+                    <td className="cell-truncate-lg" title={cat.description}>{cat.description || '-'}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--info-color)', whiteSpace: 'nowrap' }}>{catProducts.length} Products</td>
+                    <td style={{ fontWeight: 600, color: 'var(--success-color)', whiteSpace: 'nowrap' }}>{totalStock} Units</td>
                     <td>
                       <button className="btn btn-secondary" style={{ padding: '0.4rem', marginRight: '0.5rem' }} title="Edit" onClick={() => setEditingCategory(cat)}>
                         <Edit size={16} />

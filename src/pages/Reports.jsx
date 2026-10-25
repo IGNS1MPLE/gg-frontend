@@ -970,11 +970,11 @@ export default function Reports() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
                 <button 
                   className="btn btn-secondary" 
                   disabled={loading}
-                  style={{ flex: 1, padding: '0.55rem 0.6rem', fontSize: '0.85rem' }} 
+                  style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.55rem 0.6rem', fontSize: '0.825rem', whiteSpace: 'nowrap' }} 
                   onClick={() => handlePreview(rep.id)}
                 >
                   {isCurrentLoading ? <RefreshCw size={14} className="spin" /> : <Eye size={14} />} 
@@ -983,7 +983,7 @@ export default function Reports() {
                 <button 
                   className="btn btn-secondary" 
                   disabled={loading}
-                  style={{ flex: 1, padding: '0.55rem 0.6rem', fontSize: '0.85rem', color: 'var(--accent-color)', borderColor: 'var(--accent-color)' }} 
+                  style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.55rem 0.6rem', fontSize: '0.825rem', color: 'var(--accent-color)', borderColor: 'var(--accent-color)', whiteSpace: 'nowrap' }} 
                   onClick={() => handleExportPDF(rep.id)}
                 >
                   <Download size={14} /> PDF Report
@@ -991,7 +991,7 @@ export default function Reports() {
                 <button 
                   className="btn btn-success" 
                   disabled={loading}
-                  style={{ flex: 1, padding: '0.55rem 0.6rem', fontSize: '0.85rem' }} 
+                  style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.55rem 0.6rem', fontSize: '0.825rem', whiteSpace: 'nowrap' }} 
                   onClick={() => handleExportExcel(rep.id)}
                 >
                   <FileSpreadsheet size={14} /> Excel (.xlsx)

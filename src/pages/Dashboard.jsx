@@ -156,7 +156,7 @@ export default function Dashboard() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
       {/* 1. TOP STAT METRIC CARDS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
+      <div className="dashboard-kpi-grid">
         
         {/* Metric 1: Customers / Active Hawkers */}
         <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '1.25rem 1.5rem' }}>
@@ -213,7 +213,7 @@ export default function Dashboard() {
       </div>
 
       {/* 2. MAIN MIDDLE SECTION (STATISTICS CHART & TOP SELLING PRODUCTS) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.25rem', minHeight: '440px' }}>
+      <div className="dashboard-main-grid">
         
         {/* Statistics Line Chart Container */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
@@ -362,11 +362,11 @@ export default function Dashboard() {
                     fontWeight: 600
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', minWidth: 0 }}>
                     <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#E0F2F1', color: '#1B3834', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Package size={14} />
                     </div>
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                    <span title={p.name} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
                       {p.name}
                     </span>
                   </div>
@@ -399,7 +399,7 @@ export default function Dashboard() {
       </div>
 
       {/* 3. BOTTOM QUICK FEATURE CARDS ROW (Product, Category, Inventory, Collections) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
+      <div className="dashboard-quick-grid">
         
         {/* Widget 1: Product */}
         <div 
@@ -460,7 +460,7 @@ export default function Dashboard() {
       </div>
 
       {/* 4. LOW STOCK ALERTS & RECENT TRANSACTIONS ROW (Placed below quick feature cards) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+      <div className="dashboard-tables-grid">
         
         {/* Left Card: LOW STOCK ALERTS */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
@@ -498,7 +498,7 @@ export default function Dashboard() {
                     const isCritical = item.current_stock <= (item.min_stock / 2);
                     return (
                       <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                        <td className="cell-truncate-md" title={item.name} style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                           {item.name}
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
@@ -600,13 +600,13 @@ export default function Dashboard() {
                           {tx.reference}
                         </span>
                       </td>
-                      <td style={{ padding: '0.85rem 1rem', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      <td className="cell-truncate-sm" title={tx.party} style={{ padding: '0.85rem 1rem', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         {tx.party}
                       </td>
-                      <td style={{ padding: '0.85rem 1rem', fontWeight: 800, fontSize: '0.85rem', color: tx.amountColor || 'var(--text-primary)' }}>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 800, fontSize: '0.85rem', color: tx.amountColor || 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                         {tx.amount}
                       </td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         {tx.time}
                       </td>
                     </tr>

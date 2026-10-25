@@ -302,7 +302,7 @@ export default function Collections() {
             <h3 style={{ margin: 0 }}>Collection History</h3>
             
             {/* Search Filter in History */}
-            <div className="topbar-search" style={{ margin: 0, padding: '0.35rem 0.85rem', width: '220px' }}>
+            <div className="topbar-search" style={{ margin: 0, width: '100%', maxWidth: '260px' }}>
               <Search size={15} color="var(--text-secondary)" />
               <input 
                 type="text" 
@@ -311,6 +311,16 @@ export default function Collections() {
                 onChange={e => setHistorySearch(e.target.value)} 
                 style={{ fontSize: '0.8rem' }}
               />
+              {historySearch && (
+                <button 
+                  type="button"
+                  className="clear-btn"
+                  onClick={() => setHistorySearch('')}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
 
@@ -335,12 +345,12 @@ export default function Collections() {
                   return (
                     <tr key={col.id} style={{ background: isModified ? 'rgba(245, 158, 11, 0.03)' : 'transparent' }}>
                       <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{col.date}</td>
-                      <td style={{ fontWeight: 600 }}>
+                      <td className="cell-truncate-md" title={hawker?.name || `Hawker #${col.hawker_id}`} style={{ fontWeight: 600 }}>
                         {hawker?.name || `Hawker #${col.hawker_id}`}
                       </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span className="text-success" style={{ fontWeight: 700 }}>
+                          <span className="text-success" style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                             +₹{col.amount.toFixed(2)}
                           </span>
                           {hasAmountDiff && (

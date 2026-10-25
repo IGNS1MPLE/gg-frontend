@@ -91,7 +91,7 @@ export default function UserDashboard({ user }) {
       </div>
 
       {/* Metric Cards Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
+      <div className="dashboard-kpi-grid">
         
         {/* Metric 1 */}
         <div className="card" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -156,14 +156,14 @@ export default function UserDashboard({ user }) {
       </div>
 
       {/* Quick User Actions & Assigned Products */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.25rem' }}>
+      <div className="dashboard-main-grid">
         
         {/* Left: Quick Actions */}
         <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
             Quick Actions
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+          <div className="grid-cols-3" style={{ display: 'grid', gap: '1rem' }}>
             
             <div 
               onClick={() => navigate('/daily-distribution')}

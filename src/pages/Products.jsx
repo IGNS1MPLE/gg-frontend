@@ -307,6 +307,16 @@ export default function Products() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            {search && (
+              <button 
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -379,15 +389,15 @@ export default function Products() {
                 return (
                   <tr key={product.id}>
                     <td>#{product.id}</td>
-                    <td style={{ fontWeight: 600 }}>
-                      {product.name}
+                    <td className="cell-truncate-md" title={product.name} style={{ fontWeight: 600 }}>
+                      <div className="truncate-text">{product.name}</div>
                       {product.barcode && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{product.barcode}</div>}
                     </td>
                     <td><span className="badge info">{product.category}</span></td>
                     <td><span className="badge warning" style={{ background: '#FEF3C7', color: '#92400E' }}>{product.unit || 'Pcs'}</span></td>
-                    <td>₹{product.base_cost.toFixed(2)} / ₹{product.selling_price.toFixed(2)}</td>
-                    <td>₹{product.commission_rate.toFixed(2)}</td>
-                    <td style={{ fontWeight: 600 }}>{product.current_stock} {product.unit || 'Pcs'}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>₹{product.base_cost.toFixed(2)} / ₹{product.selling_price.toFixed(2)}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>₹{product.commission_rate.toFixed(2)}</td>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{product.current_stock} {product.unit || 'Pcs'}</td>
                     <td>
                       {product.expiry_date ? (
                         <span style={{ fontSize: '0.85rem' }}>{product.expiry_date}</span>

@@ -264,8 +264,8 @@ export default function ProductSearchSelect({
               onKeyDown={handleSearchKeyDown}
               placeholder="Search product name, category, or barcode..."
               style={{
-                paddingLeft: '2.4rem',
-                paddingRight: searchTerm ? '2.2rem' : '0.85rem',
+                paddingLeft: '2.5rem',
+                paddingRight: searchTerm ? '2.4rem' : '0.85rem',
                 paddingTop: '0.6rem',
                 paddingBottom: '0.6rem',
                 fontSize: '0.875rem',

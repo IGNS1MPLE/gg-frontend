@@ -21,7 +21,8 @@ import {
   PlusCircle,
   X,
   Home,
-  Trash2
+  Trash2,
+  Menu
 } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard';
@@ -56,6 +57,12 @@ function AppContent() {
   const [notificationsData, setNotificationsData] = useState({ count: 0, notifications: [] });
   const [activeNotifFilter, setActiveNotifFilter] = useState('ALL');
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Close mobile sidebar on page navigation
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
   
   const [hawkersList, setHawkersList] = useState([]);
   const [newRequest, setNewRequest] = useState({
@@ -198,9 +205,25 @@ function AppContent() {
 
   return (
     <div className="app-container">
-      <aside className="sidebar">
+      {/* Mobile Sidebar Backdrop */}
+      {mobileSidebarOpen && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={() => setMobileSidebarOpen(false)} 
+          aria-label="Close navigation"
+        />
+      )}
+
+      <aside className={`sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-title">
           <span className="sidebar-brand-badge">★</span> Inventory Hub
+          <button 
+            className="mobile-menu-btn"
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+          >
+            <X size={20} />
+          </button>
         </div>
         
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -276,7 +299,25 @@ function AppContent() {
       
       <main className="main-content">
         <div className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              className="mobile-menu-btn"
+              onClick={() => setMobileSidebarOpen(true)}
+              aria-label="Open navigation menu"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.35rem',
+                borderRadius: '8px'
+              }}
+            >
+              <Menu size={22} />
+            </button>
             <div className="topbar-breadcrumb">
               <Home size={15} style={{ marginBottom: '1px' }} /> HOME &gt; <span>{getPageTitle()}</span>
             </div>
@@ -288,9 +329,10 @@ function AppContent() {
             <button 
               className="btn btn-secondary"
               onClick={() => setShowRequestModal(true)}
-              style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
             >
-              <PlusCircle size={14} color="var(--accent-color)" /> + Request Product
+              <PlusCircle size={14} color="var(--accent-color)" />
+              <span className="request-product-btn-text">+ Request Product</span>
             </button>
             
             {/* Notification Center Bell & Dropdown */}

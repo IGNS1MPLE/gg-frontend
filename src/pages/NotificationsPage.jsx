@@ -81,7 +81,7 @@ export default function NotificationsPage() {
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="tabs-scroll-container" style={{ paddingBottom: '0.25rem' }}>
             {[
               { id: 'ALL', label: 'All Alerts' },
               { id: 'STOCK', label: '🔔 Low Stock' },
@@ -92,7 +92,7 @@ export default function NotificationsPage() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className="btn"
+                className="btn tab-scroll-item"
                 style={{
                   background: activeCategory === cat.id ? 'var(--accent-color)' : 'rgba(255,255,255,0.05)',
                   color: activeCategory === cat.id ? '#fff' : 'var(--text-secondary)',
@@ -106,7 +106,7 @@ export default function NotificationsPage() {
             ))}
           </div>
 
-          <div className="topbar-search" style={{ margin: 0, width: '260px' }}>
+          <div className="topbar-search" style={{ margin: 0, width: '100%', maxWidth: '300px' }}>
             <Search size={16} color="var(--text-secondary)" />
             <input 
               type="text" 
@@ -114,6 +114,16 @@ export default function NotificationsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            {search && (
+              <button 
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
         </div>

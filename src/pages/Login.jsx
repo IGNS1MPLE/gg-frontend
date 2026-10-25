@@ -102,20 +102,10 @@ export default function Login({ onLoginSuccess }) {
       </svg>
 
       {/* Two-Column Master Container */}
-      <div style={{
-        width: '100%',
-        maxWidth: '920px',
-        borderRadius: '28px',
-        overflow: 'hidden',
-        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.45)',
-        background: '#FFFFFF',
-        zIndex: 10,
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr'
-      }}>
+      <div className="login-container-grid">
 
         {/* LEFT COLUMN: System Live Notifications & Updates */}
-        <div style={{
+        <div className="login-banner-col" style={{
           background: 'linear-gradient(160deg, #183833 0%, #1e4d46 60%, #0d9488 100%)',
           padding: '2.5rem 2rem',
           color: '#FFFFFF',

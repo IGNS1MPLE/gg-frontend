@@ -190,6 +190,16 @@ export default function Hawkers() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            {search && (
+              <button 
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -247,8 +257,12 @@ export default function Hawkers() {
                       </td>
                       <td style={{ fontWeight: 600 }}>#{hawker.id}</td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                          <span 
+                            className="cell-truncate-md truncate-text" 
+                            title={hawker.name}
+                            style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}
+                          >
                             {hawker.name}
                           </span>
                           {todayHawkerLogs.length > 0 && (
@@ -258,18 +272,19 @@ export default function Hawkers() {
                               borderRadius: '9999px', 
                               background: 'var(--accent-pill)', 
                               color: 'var(--text-primary)',
-                              fontWeight: 700 
+                              fontWeight: 700,
+                              flexShrink: 0
                             }}>
                               {todayHawkerLogs.length} Issued Today
                             </span>
                           )}
                         </div>
                       </td>
-                      <td>{hawker.contact_info || '-'}</td>
+                      <td className="cell-truncate-sm" title={hawker.contact_info}>{hawker.contact_info || '-'}</td>
                       <td>
                         {hawker.route ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                            <MapPin size={14} color="var(--accent-color)" /> {hawker.route}
+                          <span className="cell-truncate-sm" title={hawker.route} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                            <MapPin size={14} color="var(--accent-color)" style={{ flexShrink: 0 }} /> {hawker.route}
                           </span>
                         ) : (
                           <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Not assigned</span>
@@ -282,7 +297,7 @@ export default function Hawkers() {
                           <span className="badge danger">Inactive</span>
                         )}
                       </td>
-                      <td style={{ fontWeight: 800 }} className={hawker.balance < 0 ? 'text-danger' : (hawker.balance > 0 ? 'text-success' : '')}>
+                      <td style={{ fontWeight: 800, whiteSpace: 'nowrap' }} className={hawker.balance < 0 ? 'text-danger' : (hawker.balance > 0 ? 'text-success' : '')}>
                         ₹{Math.abs(hawker.balance || 0).toFixed(2)}
                       </td>
                       <td onClick={e => e.stopPropagation()}>

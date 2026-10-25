@@ -328,9 +328,9 @@ export default function Inventory() {
       </div>
 
       {/* Tabs Bar */}
-      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+      <div className="tabs-scroll-container" style={{ borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem', paddingBottom: '0.25rem' }}>
         <button 
-          className="btn" 
+          className="btn tab-scroll-item" 
           onClick={() => setActiveTab('purchases')}
           style={{ 
             background: activeTab === 'purchases' ? 'var(--accent-color)' : 'transparent',
@@ -344,7 +344,7 @@ export default function Inventory() {
         </button>
 
         <button 
-          className="btn" 
+          className="btn tab-scroll-item" 
           onClick={() => setActiveTab('suppliers')}
           style={{ 
             background: activeTab === 'suppliers' ? 'var(--accent-color)' : 'transparent',
@@ -358,7 +358,7 @@ export default function Inventory() {
         </button>
 
         <button 
-          className="btn" 
+          className="btn tab-scroll-item" 
           onClick={() => setActiveTab('expiry')}
           style={{ 
             background: activeTab === 'expiry' ? 'var(--accent-color)' : 'transparent',
@@ -635,11 +635,13 @@ export default function Inventory() {
                     return (
                       <tr key={purchase.id}>
                         <td>{purchase.date}</td>
-                        <td style={{ fontWeight: 600 }}>{product ? product.name : `Product #${purchase.product_id}`}</td>
+                        <td className="cell-truncate-md" title={product ? product.name : `Product #${purchase.product_id}`} style={{ fontWeight: 600 }}>
+                          {product ? product.name : `Product #${purchase.product_id}`}
+                        </td>
                         <td className="text-success" style={{ fontWeight: 600 }}>+{purchase.quantity}</td>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₹{unitCost.toFixed(2)}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--accent-color)' }}>₹{purchase.total_cost.toFixed(2)}</td>
-                        <td>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>₹{unitCost.toFixed(2)}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--accent-color)', whiteSpace: 'nowrap' }}>₹{purchase.total_cost.toFixed(2)}</td>
+                        <td className="cell-truncate-sm" title={purchase.supplier || '-'}>
                           {purchase.supplier ? (
                             <span style={{ fontWeight: 500 }}>{purchase.supplier}</span>
                           ) : (
@@ -653,7 +655,7 @@ export default function Inventory() {
                             <span style={{ color: 'var(--text-secondary)' }}>N/A</span>
                           )}
                         </td>
-                        <td>{purchase.notes || '-'}</td>
+                        <td className="cell-truncate-md" title={purchase.notes || '-'}>{purchase.notes || '-'}</td>
                         <td>
                           <button className="btn btn-secondary" style={{ padding: '0.4rem', color: 'var(--danger-color)' }} title="Delete" onClick={() => handleDeletePurchase(purchase.id)}>
                             <Trash2 size={16} />

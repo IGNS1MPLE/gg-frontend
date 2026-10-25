@@ -154,6 +154,16 @@ export default function Units() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            {search && (
+              <button 
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -174,15 +184,15 @@ export default function Units() {
 
                 return (
                   <tr key={unit.id}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <td className="cell-truncate-md" title={unit.name} style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Box size={16} color="var(--accent-color)" />
-                        <span>{unit.name}</span>
+                        <Box size={16} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                        <span className="truncate-text">{unit.name}</span>
                       </div>
                     </td>
                     <td><span className="badge info">{unit.abbreviation || unit.name.toLowerCase()}</span></td>
-                    <td>{unit.description || '-'}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--info-color)' }}>{unitProducts.length} Products</td>
+                    <td className="cell-truncate-lg" title={unit.description}>{unit.description || '-'}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--info-color)', whiteSpace: 'nowrap' }}>{unitProducts.length} Products</td>
                     <td>
                       <button className="btn btn-secondary" style={{ padding: '0.4rem', marginRight: '0.5rem' }} title="Edit" onClick={() => setEditingUnit(unit)}>
                         <Edit size={16} />

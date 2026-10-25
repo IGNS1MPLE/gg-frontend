@@ -167,19 +167,20 @@ export default function TransactionsHistory() {
       </div>
 
       {/* Category Tabs / Chip Filter */}
-      <div style={{
-        display: 'flex',
-        gap: '0.5rem',
-        overflowX: 'auto',
-        paddingBottom: '0.25rem',
-        borderBottom: '1px solid var(--border-color)'
-      }}>
+      <div 
+        className="tabs-scroll-container"
+        style={{
+          paddingBottom: '0.25rem',
+          borderBottom: '1px solid var(--border-color)'
+        }}
+      >
         {categoriesList.map(cat => {
           const isActive = selectedCategory === cat.id;
           return (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
+              className="tab-scroll-item"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -231,8 +232,10 @@ export default function TransactionsHistory() {
             />
             {search && (
               <button 
+                type="button"
+                className="clear-btn"
                 onClick={() => setSearch('')}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem' }}
+                title="Clear search"
               >
                 ✕
               </button>
@@ -241,20 +244,13 @@ export default function TransactionsHistory() {
 
           {/* Sort & Quick Summary */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               Showing {filteredTransactions.length} {filteredTransactions.length === 1 ? 'record' : 'records'}
             </span>
             <select 
+              className="select-sm"
               value={sortOrder} 
               onChange={e => setSortOrder(e.target.value)}
-              style={{
-                padding: '0.4rem 0.75rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.825rem',
-                background: 'var(--card-bg, #fff)',
-                color: 'var(--text-primary)'
-              }}
             >
               <option value="newest">Sort: Newest First</option>
               <option value="oldest">Sort: Oldest First</option>
@@ -354,17 +350,21 @@ export default function TransactionsHistory() {
                     </td>
 
                     {/* Party Column */}
-                    <td style={{ padding: '0.9rem 1rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    <td 
+                      className="cell-truncate-md"
+                      style={{ padding: '0.9rem 1rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                      title={tx.party}
+                    >
                       {tx.party}
                     </td>
 
                     {/* Amount / Units Column */}
-                    <td style={{ padding: '0.9rem 1rem', fontWeight: 800, fontSize: '0.9rem', color: cfg.amountColor }}>
+                    <td style={{ padding: '0.9rem 1rem', fontWeight: 800, fontSize: '0.9rem', color: cfg.amountColor, whiteSpace: 'nowrap' }}>
                       {tx.amount}
                     </td>
 
                     {/* Time / Date Column */}
-                    <td style={{ padding: '0.9rem 1rem', fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    <td style={{ padding: '0.9rem 1rem', fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                       <div>{tx.time}</div>
                       {tx.raw_date && (
                         <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', opacity: 0.8 }}>

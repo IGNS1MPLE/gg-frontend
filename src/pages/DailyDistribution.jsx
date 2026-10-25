@@ -463,8 +463,8 @@ export default function DailyDistribution() {
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0, flex: 1, marginRight: '0.75rem' }}>
+                      <div className="truncate-text" title={item.productName} style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-primary)' }}>
                         {index + 1}. {item.productName}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -472,9 +472,9 @@ export default function DailyDistribution() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-color)' }}>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-color)', whiteSpace: 'nowrap' }}>
                           ₹{item.totalValue.toFixed(2)}
                         </div>
                       </div>
