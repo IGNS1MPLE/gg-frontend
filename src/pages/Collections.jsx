@@ -313,7 +313,6 @@ export default function Collections() {
                 placeholder="Search history..." 
                 value={historySearch} 
                 onChange={e => setHistorySearch(e.target.value)} 
-                style={{ fontSize: '0.8rem' }}
               />
               {historySearch && (
                 <button 
