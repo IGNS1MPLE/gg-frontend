@@ -8,6 +8,7 @@ import {
 import ProductSearchSelect from '../components/ProductSearchSelect';
 import SearchableSelect from '../components/SearchableSelect';
 import { shareIssuedSlipToWhatsApp, formatIssuedSlipWhatsAppMessage, buildWhatsAppDesktopUrl } from '../utils/whatsapp';
+import { formatHawkerBalance } from '../utils/currency';
 
 export default function DailyDistribution() {
   const [searchParams] = useSearchParams();
@@ -325,11 +326,28 @@ export default function DailyDistribution() {
               </div>
 
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <User size={14} /> Hawker
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', margin: 0 }}>
+                    <User size={14} /> Hawker
+                  </label>
+                  {currentHawker && (() => {
+                    const balInfo = formatHawkerBalance(currentHawker.balance);
+                    return (
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: balInfo.color }}>
+                        Bal: {balInfo.formatted} {balInfo.status !== 'settled' && `(${balInfo.label})`}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <SearchableSelect
-                  options={hawkers.map(h => ({ value: h.id, label: h.name, sublabel: h.route ? `Route: ${h.route}` : '' }))}
+                  options={hawkers.map(h => {
+                    const b = formatHawkerBalance(h.balance, { withLabel: true });
+                    return {
+                      value: h.id,
+                      label: h.name,
+                      sublabel: `${h.route ? `Route: ${h.route} | ` : ''}${b.fullText}`
+                    };
+                  })}
                   value={dispatchData.hawker_id}
                   onChange={(val) => handleHawkerChange(val ? parseInt(val) : '')}
                   placeholder="Search or select hawker..."

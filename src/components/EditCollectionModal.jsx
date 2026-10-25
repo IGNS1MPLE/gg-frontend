@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { X, Pencil, AlertTriangle, ArrowRight, User, Check, RefreshCw, Info } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
+import { formatHawkerBalance } from '../utils/currency';
 
 export default function EditCollectionModal({
   isOpen,
@@ -55,7 +56,8 @@ export default function EditCollectionModal({
     if (!isHawkerChanged) {
       const curBal = currentHawker ? currentHawker.balance : 0;
       const diff = newAmount - origAmount;
-      const projBal = curBal + diff;
+      // Paying more money reduces the hawker's unsettled debt
+      const projBal = curBal - diff;
       return {
         type: 'same_hawker',
         hawkerName: currentHawker?.name || `Hawker #${origHawkerId}`,
@@ -65,10 +67,12 @@ export default function EditCollectionModal({
       };
     } else {
       const oldCurBal = currentHawker ? currentHawker.balance : 0;
-      const oldProjBal = oldCurBal - origAmount; // Reversing old payment
+      // Reversing old payment increases old hawker's debt
+      const oldProjBal = oldCurBal + origAmount;
 
       const newCurBal = selectedHawker ? selectedHawker.balance : 0;
-      const newProjBal = newCurBal + newAmount; // Applying new payment
+      // Applying payment to new hawker reduces new hawker's debt
+      const newProjBal = newCurBal - newAmount;
 
       return {
         type: 'diff_hawkers',
@@ -85,9 +89,8 @@ export default function EditCollectionModal({
   const impact = calculateBalanceImpact();
 
   const formatBalanceText = (bal) => {
-    if (bal < 0) return <span className="text-danger" style={{ fontWeight: 700 }}>Owes ₹{Math.abs(bal).toFixed(2)}</span>;
-    if (bal > 0) return <span className="text-success" style={{ fontWeight: 700 }}>Credit ₹{bal.toFixed(2)}</span>;
-    return <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Settled (₹0.00)</span>;
+    const info = formatHawkerBalance(bal, { withLabel: true });
+    return <span className={info.colorClass} style={{ fontWeight: 700 }}>{info.fullText}</span>;
   };
 
   const handleInitialSubmit = (e) => {
@@ -250,7 +253,7 @@ export default function EditCollectionModal({
                   options={hawkers.map(h => ({
                     value: h.id,
                     label: h.name,
-                    sublabel: h.balance < 0 ? `Owes ₹${Math.abs(h.balance).toFixed(2)}` : (h.balance > 0 ? `Credit ₹${h.balance.toFixed(2)}` : 'Settled')
+                    sublabel: formatHawkerBalance(h.balance, { withLabel: true }).fullText
                   }))}
                   value={formData.hawker_id}
                   onChange={val => setFormData({ ...formData, hawker_id: val ? parseInt(val) : '' })}

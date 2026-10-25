@@ -7,11 +7,7 @@ import {
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 
-const formatCurrency = (val) => {
-  const num = Number(val) || 0;
-  if (num < 0) return `-₹${Math.abs(num).toFixed(2)}`;
-  return `₹${num.toFixed(2)}`;
-};
+import { formatCurrency, formatHawkerBalance } from '../utils/currency';
 
 const isNumericKey = (key) => {
   return [
@@ -389,7 +385,7 @@ export default function Reports() {
           const totalSold = hLogs.reduce((sum, l) => sum + (l.sold_qty || 0), 0);
           const totalRev = hLogs.reduce((sum, l) => sum + (l.gross_revenue || 0), 0);
           const totalPayout = hLogs.reduce((sum, l) => sum + (l.hawker_payout || 0), 0);
-          const hawkerBal = Math.abs(h.balance || 0);
+          const balInfo = formatHawkerBalance(h.balance, { withLabel: true });
 
           return {
             id: `#${h.id}`,
@@ -399,12 +395,12 @@ export default function Reports() {
             sold: totalSold,
             revenue: formatCurrency(totalRev),
             payout: formatCurrency(totalPayout),
-            balance: formatCurrency(hawkerBal),
+            balance: balInfo.fullText,
             raw_id: h.id,
             raw_sold: totalSold,
             raw_revenue: totalRev,
             raw_payout: totalPayout,
-            raw_balance: hawkerBal,
+            raw_balance: h.balance || 0,
             isZeroSales: totalSold === 0
           };
         });
@@ -413,7 +409,7 @@ export default function Reports() {
           const sumSold = rows.reduce((sum, r) => sum + r.raw_sold, 0);
           const sumRevenue = rows.reduce((sum, r) => sum + r.raw_revenue, 0);
           const sumPayout = rows.reduce((sum, r) => sum + r.raw_payout, 0);
-          const sumBalance = rows.reduce((sum, r) => sum + r.raw_balance, 0);
+          const sumBalance = rows.reduce((sum, r) => sum + (r.raw_balance > 0 ? r.raw_balance : 0), 0);
 
           totalsRow = {
             id: 'TOTAL',

@@ -7,6 +7,7 @@ import {
   Filter, List, RotateCcw, ArrowUpRight, Check, X 
 } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
+import { formatHawkerBalance } from '../utils/currency';
 
 export default function EveningReturns() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -461,8 +462,12 @@ export default function EveningReturns() {
                               <MapPin size={12} color="var(--accent-color)" /> {group.route} | Date: {group.date}
                               {(() => {
                                 const hObj = hawkers.find(h => h.id === group.hawkerId);
-                                const bal = Math.abs(hObj?.balance || 0);
-                                return bal > 0 ? <span style={{ color: 'var(--coral-red)', fontWeight: 700, marginLeft: '0.35rem' }}>| Bal: ₹{bal.toFixed(2)}</span> : null;
+                                const balInfo = formatHawkerBalance(hObj?.balance);
+                                return balInfo.status !== 'settled' ? (
+                                  <span style={{ color: balInfo.color, fontWeight: 700, marginLeft: '0.35rem' }}>
+                                    | Bal: {balInfo.formatted}
+                                  </span>
+                                ) : null;
                               })()}
                             </div>
                           </div>
@@ -536,19 +541,20 @@ export default function EveningReturns() {
                   </div>
                   {(() => {
                     const hObj = hawkers.find(h => h.id === selectedHawkerGroup.hawkerId);
-                    const bal = Math.abs(hObj?.balance || 0);
+                    const balInfo = formatHawkerBalance(hObj?.balance);
                     return (
                       <div style={{ textAlign: 'center' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Account Balance:</span>
-                        <div style={{ fontWeight: 800, fontSize: '1.05rem', color: hObj?.balance < 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
-                          ₹{bal.toFixed(2)}
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Unsettled Balance (All Records):</span>
+                        <div style={{ fontWeight: 800, fontSize: '1.05rem', color: balInfo.color }}>
+                          {balInfo.formatted} {balInfo.status !== 'settled' && <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>({balInfo.label})</span>}
                         </div>
                       </div>
                     );
                   })()}
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Route / Date:</span>
-                    <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{selectedHawkerGroup.route} ({selectedHawkerGroup.date})</div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Today's Expected Settlement:</span>
+                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--warning-color)' }}>₹{totalExpectedCash.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{selectedHawkerGroup.route} ({selectedHawkerGroup.date})</div>
                   </div>
                 </div>
 
@@ -656,7 +662,10 @@ export default function EveningReturns() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Total Expected Cash to Collect:</span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Today's Expected Cash to Collect:</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Calculated from today's returns & sold quantities</div>
+                    </div>
                     <strong style={{ fontSize: '1.25rem', color: 'var(--warning-color)' }}>₹{totalExpectedCash.toFixed(2)}</strong>
                   </div>
                 </div>
@@ -917,6 +926,7 @@ export default function EveningReturns() {
                   <th style={{ textAlign: 'right' }}>Price</th>
                   <th style={{ textAlign: 'right' }}>Expected Payment</th>
                   <th style={{ textAlign: 'right' }}>Cash Collected</th>
+                  <th style={{ textAlign: 'right' }}>Unsettled Balance</th>
                   <th style={{ textAlign: 'center' }}>Status</th>
                 </tr>
               </thead>
@@ -961,6 +971,9 @@ export default function EveningReturns() {
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--success-color)' }}>
                         {isSettled ? `₹${log.cash_collected.toFixed(2)}` : '-'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: (log.outstanding_amount || 0) > 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
+                        ₹{Math.abs(log.outstanding_amount || 0).toFixed(2)}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         {isSettled ? (

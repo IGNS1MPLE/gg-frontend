@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
 import EditCollectionModal from '../components/EditCollectionModal';
+import { formatHawkerBalance } from '../utils/currency';
 
 export default function Collections() {
   const [hawkers, setHawkers] = useState([]);
@@ -101,7 +102,7 @@ export default function Collections() {
   };
 
   // KPIs
-  const totalOutstanding = hawkers.reduce((acc, curr) => acc + (curr.balance < 0 ? Math.abs(curr.balance) : 0), 0);
+  const totalOutstanding = hawkers.reduce((acc, curr) => acc + (curr.balance > 0 ? curr.balance : 0), 0);
   const totalCollectedAllTime = collections.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   
   const todayStr = new Date().toISOString().split('T')[0];
@@ -172,7 +173,7 @@ export default function Collections() {
             ₹{totalOutstanding.toFixed(2)}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            Across {hawkers.filter(h => h.balance < 0).length} hawkers with negative balances
+            Across {hawkers.filter(h => h.balance > 0).length} hawkers with pending balances
           </div>
         </div>
 
@@ -224,7 +225,7 @@ export default function Collections() {
                   options={hawkers.map(h => ({ 
                     value: h.id, 
                     label: h.name, 
-                    sublabel: h.balance < 0 ? `Owes ₹${Math.abs(h.balance).toFixed(2)}` : (h.balance > 0 ? `Credit ₹${h.balance.toFixed(2)}` : 'Settled')
+                    sublabel: formatHawkerBalance(h.balance, { withLabel: true }).fullText
                   }))}
                   value={newCollection.hawker_id}
                   onChange={(val) => setNewCollection({...newCollection, hawker_id: val ? parseInt(val) : ''})}
@@ -275,15 +276,18 @@ export default function Collections() {
                 </tr>
               </thead>
               <tbody>
-                {hawkers.map(h => (
-                  <tr key={h.id}>
-                    <td style={{ fontWeight: 600 }}>{h.name}</td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{h.route || 'General'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold' }} className={h.balance < 0 ? 'text-danger' : (h.balance > 0 ? 'text-success' : '')}>
-                      {h.balance < 0 ? `Owes ₹${Math.abs(h.balance).toFixed(2)}` : (h.balance > 0 ? `Credit ₹${h.balance.toFixed(2)}` : 'Settled')}
-                    </td>
-                  </tr>
-                ))}
+                {hawkers.map(h => {
+                  const balInfo = formatHawkerBalance(h.balance, { withLabel: true });
+                  return (
+                    <tr key={h.id}>
+                      <td style={{ fontWeight: 600 }}>{h.name}</td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{h.route || 'General'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold' }} className={balInfo.colorClass}>
+                        {balInfo.fullText}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {hawkers.length === 0 && (
                   <tr>
                     <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>

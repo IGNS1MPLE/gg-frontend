@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import EditCollectionModal from '../components/EditCollectionModal';
+import { formatHawkerBalance } from '../utils/currency';
 
 export default function Hawkers() {
   const [hawkers, setHawkers] = useState([]);
@@ -236,6 +237,7 @@ export default function Hawkers() {
                 const todayDamagedUnits = todayHawkerLogs.reduce((sum, l) => sum + l.damaged_qty, 0);
                 const todaySoldUnits = todayHawkerLogs.reduce((sum, l) => sum + l.sold_qty, 0);
                 const todayCashCollected = todayHawkerLogs.reduce((sum, l) => sum + l.cash_collected, 0);
+                const hawkerBalInfo = formatHawkerBalance(hawker.balance);
 
                 return (
                   <React.Fragment key={hawker.id}>
@@ -297,8 +299,13 @@ export default function Hawkers() {
                           <span className="badge danger">Inactive</span>
                         )}
                       </td>
-                      <td style={{ fontWeight: 800, whiteSpace: 'nowrap' }} className={hawker.balance < 0 ? 'text-danger' : (hawker.balance > 0 ? 'text-success' : '')}>
-                        ₹{Math.abs(hawker.balance || 0).toFixed(2)}
+                      <td style={{ fontWeight: 800, whiteSpace: 'nowrap' }} className={hawkerBalInfo.colorClass}>
+                        {hawkerBalInfo.formatted}
+                        {hawkerBalInfo.status !== 'settled' && (
+                          <span style={{ fontSize: '0.725rem', fontWeight: 600, marginLeft: '0.35rem', opacity: 0.85 }}>
+                            ({hawkerBalInfo.label})
+                          </span>
+                        )}
                       </td>
                       <td onClick={e => e.stopPropagation()}>
                         <button 
@@ -378,9 +385,11 @@ export default function Hawkers() {
                               </div>
 
                               <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Account Balance</div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: hawker.balance < 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
-                                  ₹{Math.abs(hawker.balance || 0).toFixed(2)}
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                  {hawkerBalInfo.status === 'credit' ? 'Account Credit' : (hawkerBalInfo.status === 'owes' ? 'Unsettled Balance' : 'Account Balance')}
+                                </div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: hawkerBalInfo.color }}>
+                                  {hawkerBalInfo.formatted}
                                 </div>
                               </div>
                             </div>
