@@ -38,6 +38,7 @@ import Reports from './pages/Reports';
 import NotificationsPage from './pages/NotificationsPage';
 import UsersRoles from './pages/UsersRoles';
 import SettingsPage from './pages/SettingsPage';
+import TransactionsHistory from './pages/TransactionsHistory';
 import Login from './pages/Login';
 
 function AppContent() {
@@ -174,16 +175,18 @@ function AppContent() {
       case '/': return 'Dashboard';
       case '/hawkers': return 'Hawkers';
       case '/products': return 'Products';
-      case '/categories': return 'Categories';
-      case '/inventory': return 'Inventory';
       case '/distribution': return 'Daily Distribution';
       case '/returns': return 'Evening Returns';
       case '/collections': return 'Collections';
+      case '/inventory': return 'Inventory';
       case '/expenses': return 'Expenses';
+      case '/categories': return 'Categories';
+      case '/units': return 'Units';
       case '/reports': return 'Reports';
       case '/notifications': return 'Notifications';
       case '/users': return 'Users & Roles';
       case '/settings': return 'Settings';
+      case '/transactions': return 'Transactions History';
       default: return 'Dashboard';
     }
   };
@@ -213,19 +216,6 @@ function AppContent() {
             <Tags size={18} /> Products
           </NavLink>
 
-          <NavLink to="/categories" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
-            <Layers size={18} /> Categories
-          </NavLink>
-
-          <NavLink to="/units" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
-            <Box size={18} /> Product Units
-          </NavLink>
-
-
-          <NavLink to="/inventory" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
-            <Package size={18} /> Inventory
-          </NavLink>
-
           <NavLink to="/distribution" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
             <Truck size={18} /> Daily Distribution
           </NavLink>
@@ -238,8 +228,20 @@ function AppContent() {
             <Banknote size={18} /> Collections
           </NavLink>
 
+          <NavLink to="/inventory" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Package size={18} /> Inventory
+          </NavLink>
+
           <NavLink to="/expenses" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
             <Receipt size={18} /> Expenses
+          </NavLink>
+
+          <NavLink to="/categories" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Layers size={18} /> Categories
+          </NavLink>
+
+          <NavLink to="/units" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Box size={18} /> Units
           </NavLink>
 
           <NavLink to="/reports" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
@@ -404,17 +406,18 @@ function AppContent() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/hawkers" element={<Hawkers />} />
             <Route path="/products" element={<Products />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/units" element={<Units />} />
-            <Route path="/inventory" element={<Inventory />} />
             <Route path="/distribution" element={<DailyDistribution />} />
             <Route path="/returns" element={<EveningReturns />} />
             <Route path="/collections" element={<Collections />} />
+            <Route path="/inventory" element={<Inventory />} />
             <Route path="/expenses" element={<Expenses />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/units" element={<Units />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/users" element={<UsersRoles />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/transactions" element={<TransactionsHistory />} />
           </Routes>
         </div>
       </main>

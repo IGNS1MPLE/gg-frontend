@@ -15,6 +15,21 @@ export default function Inventory() {
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
 
+  const currentUser = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('app_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin' || currentUser?.email?.toLowerCase().includes('admin');
+
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearScope, setClearScope] = useState('older_than_30_days');
+  const [clearingLoading, setClearingLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
   const [newPurchase, setNewPurchase] = useState({
     date: new Date().toISOString().split('T')[0],
     product_id: '',
@@ -254,6 +269,28 @@ export default function Inventory() {
   // Expiry calculation helper
   const todayStr = new Date().toISOString().split('T')[0];
   const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const thirtyDaysAgoStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const recordsOlderThan30Days = purchases.filter(p => p.date < thirtyDaysAgoStr).length;
+
+  const handleConfirmClearHistory = async () => {
+    if (!isAdmin) {
+      alert("Admin access required: Only administrators can clear restock history logs.");
+      return;
+    }
+    setClearingLoading(true);
+    try {
+      const res = await api.post('/purchases/clear-history', { scope: clearScope });
+      setShowClearModal(false);
+      await fetchData();
+      setToastMessage(res?.message || `Successfully removed ${res?.count ?? 0} restock records.`);
+      setTimeout(() => setToastMessage(''), 5000);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to clear restock history.');
+    } finally {
+      setClearingLoading(false);
+    }
+  };
 
   const getExpiryStatus = (expiryDateStr) => {
     if (!expiryDateStr) return { status: 'none', label: 'No Expiry', class: 'badge secondary' };
@@ -540,8 +577,41 @@ export default function Inventory() {
           )}
 
           <div className="card">
-            <h3>Recent Restocks & Purchase History</h3>
-            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <h3 style={{ margin: 0 }}>Recent Restocks & Purchase History</h3>
+                <span className="badge secondary" style={{ fontSize: '0.75rem' }}>
+                  {purchases.length} {purchases.length === 1 ? 'record' : 'records'}
+                </span>
+              </div>
+              <button
+                className="btn btn-secondary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  color: purchases.length === 0 ? 'var(--text-secondary)' : 'var(--danger-color)',
+                  borderColor: purchases.length === 0 ? 'var(--border-color)' : 'var(--danger-color)',
+                  fontSize: '0.825rem',
+                  padding: '0.45rem 0.85rem',
+                  cursor: !isAdmin ? 'not-allowed' : (purchases.length === 0 ? 'not-allowed' : 'pointer'),
+                  opacity: (!isAdmin || purchases.length === 0) ? 0.6 : 1
+                }}
+                title={!isAdmin ? "Admin access required" : (purchases.length === 0 ? "No records to clear" : "Clear Restock History")}
+                onClick={() => {
+                  if (!isAdmin) {
+                    alert("Admin access required: Only administrators can clear restock history logs.");
+                    return;
+                  }
+                  if (purchases.length === 0) return;
+                  setShowClearModal(true);
+                }}
+                disabled={purchases.length === 0}
+              >
+                <Trash2 size={15} /> Clear History
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
               <table>
                 <thead>
                   <tr>
@@ -595,8 +665,12 @@ export default function Inventory() {
 
                   {purchases.length === 0 && (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                        No restock or purchase history found.
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                          <PackagePlus size={32} opacity={0.4} />
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>No Restock or Purchase History</div>
+                          <div style={{ fontSize: '0.825rem' }}>History logs have been cleared or no purchases have been logged yet.</div>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -845,6 +919,164 @@ export default function Inventory() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Confirmation Modal for Clearing Restock History */}
+      {showClearModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+          padding: '1rem'
+        }}>
+          <div className="card" style={{ maxWidth: '520px', width: '100%', border: '1px solid var(--danger-color)', position: 'relative' }}>
+            <button 
+              onClick={() => setShowClearModal(false)} 
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger-color)', marginBottom: '0.65rem' }}>
+              <AlertTriangle size={22} color="var(--danger-color)" /> Clear Restock & Purchase History
+            </h3>
+
+            {/* Clear Warning Alert */}
+            <div style={{
+              background: '#FEE2E2',
+              color: '#991B1B',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              border: '1px solid #FCA5A5',
+              fontSize: '0.85rem',
+              lineHeight: 1.45,
+              marginBottom: '1.25rem'
+            }}>
+              <strong>Warning:</strong> This action cannot be undone. Cleared restock entries will be permanently removed from this history log.
+              <div style={{ marginTop: '0.4rem', color: '#166534', fontWeight: 600 }}>
+                ✓ Data Safety: Current stock quantities, product catalog data, inventory totals, and supplier profiles will remain 100% unchanged.
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 600 }}>
+              Select cleanup scope:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.65rem',
+                padding: '0.85rem',
+                borderRadius: '8px',
+                border: clearScope === 'older_than_30_days' ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+                cursor: 'pointer',
+                background: clearScope === 'older_than_30_days' ? 'rgba(16, 185, 129, 0.06)' : 'transparent'
+              }}>
+                <input
+                  type="radio"
+                  name="clearScope"
+                  value="older_than_30_days"
+                  checked={clearScope === 'older_than_30_days'}
+                  onChange={() => setClearScope('older_than_30_days')}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                    Clear records older than 30 days ({recordsOlderThan30Days} {recordsOlderThan30Days === 1 ? 'record' : 'records'})
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Only cleans up restocks dated before {thirtyDaysAgoStr}. Keeps recent 30-day logs.
+                  </div>
+                </div>
+              </label>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.65rem',
+                padding: '0.85rem',
+                borderRadius: '8px',
+                border: clearScope === 'all' ? '2px solid var(--danger-color)' : '1px solid var(--border-color)',
+                cursor: 'pointer',
+                background: clearScope === 'all' ? 'rgba(239, 68, 68, 0.06)' : 'transparent'
+              }}>
+                <input
+                  type="radio"
+                  name="clearScope"
+                  value="all"
+                  checked={clearScope === 'all'}
+                  onChange={() => setClearScope('all')}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--danger-color)' }}>
+                    Clear all records ({purchases.length} {purchases.length === 1 ? 'record' : 'records'})
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Clears all restock and purchase history records from the table.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowClearModal(false)}
+                disabled={clearingLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: 'var(--danger-color)', color: '#fff' }}
+                onClick={handleConfirmClearHistory}
+                disabled={clearingLoading}
+              >
+                {clearingLoading ? 'Clearing...' : 'Confirm Clear History'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '1.5rem',
+          right: '1.5rem',
+          background: '#065F46',
+          color: '#FFFFFF',
+          padding: '0.85rem 1.25rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          zIndex: 1300,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          fontSize: '0.9rem',
+          fontWeight: 600
+        }}>
+          <Check size={18} color="#A7F3D0" />
+          <span>{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage('')}
+            style={{ background: 'none', border: 'none', color: '#A7F3D0', cursor: 'pointer', marginLeft: '0.5rem', display: 'flex' }}
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
 

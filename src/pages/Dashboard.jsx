@@ -469,7 +469,7 @@ export default function Dashboard() {
               Low Stock Alerts
             </div>
             <button 
-              onClick={() => navigate('/inventory')}
+              onClick={() => navigate('/products?filter=low_stock')}
               style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
             >
               View All
@@ -536,7 +536,7 @@ export default function Dashboard() {
               Recent Transactions
             </div>
             <button 
-              onClick={() => navigate('/reports')}
+              onClick={() => navigate('/transactions')}
               style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
             >
               View All
@@ -584,8 +584,21 @@ export default function Dashboard() {
                           </span>
                         </div>
                       </td>
-                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '0.85rem', color: '#2563EB' }}>
-                        {tx.reference}
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                        <span 
+                          onClick={() => {
+                            if (tx.type_category === 'distribution') navigate('/distribution');
+                            else if (tx.type_category === 'return') navigate('/returns');
+                            else if (tx.type_category === 'collection') navigate('/collections');
+                            else if (tx.type_category === 'purchase') navigate('/inventory');
+                            else if (tx.type_category === 'expense') navigate('/expenses');
+                            else navigate('/transactions');
+                          }}
+                          style={{ color: '#2563EB', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                          title={`Go to ${tx.type}`}
+                        >
+                          {tx.reference}
+                        </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         {tx.party}

@@ -389,6 +389,7 @@ export default function Reports() {
           const totalSold = hLogs.reduce((sum, l) => sum + (l.sold_qty || 0), 0);
           const totalRev = hLogs.reduce((sum, l) => sum + (l.gross_revenue || 0), 0);
           const totalPayout = hLogs.reduce((sum, l) => sum + (l.hawker_payout || 0), 0);
+          const hawkerBal = Math.abs(h.balance || 0);
 
           return {
             id: `#${h.id}`,
@@ -398,12 +399,12 @@ export default function Reports() {
             sold: totalSold,
             revenue: formatCurrency(totalRev),
             payout: formatCurrency(totalPayout),
-            balance: formatCurrency(h.balance || 0),
+            balance: formatCurrency(hawkerBal),
             raw_id: h.id,
             raw_sold: totalSold,
             raw_revenue: totalRev,
             raw_payout: totalPayout,
-            raw_balance: h.balance || 0,
+            raw_balance: hawkerBal,
             isZeroSales: totalSold === 0
           };
         });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import { Search, Plus, Edit, AlertCircle, Trash2, Calendar, ShieldAlert, Clock, Layers, Box } from 'lucide-react';
+import { Search, Plus, Edit, AlertCircle, Trash2, Calendar, ShieldAlert, Clock, Layers, Box, Check, X } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
 
 export default function Products() {
@@ -10,6 +11,24 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lowStockParam = searchParams.get('filter') === 'low_stock' || searchParams.get('low_stock') === 'true';
+  const [filterLowStock, setFilterLowStock] = useState(lowStockParam);
+
+  useEffect(() => {
+    setFilterLowStock(lowStockParam);
+  }, [lowStockParam]);
+
+  const toggleLowStockFilter = () => {
+    if (filterLowStock) {
+      setFilterLowStock(false);
+      setSearchParams({});
+    } else {
+      setFilterLowStock(true);
+      setSearchParams({ filter: 'low_stock' });
+    }
+  };
   
   const defaultProduct = {
     name: '', category: '', unit: '', barcode: '', base_cost: '', selling_price: '', commission_rate: '', current_stock: '', min_stock_alert: '', expiry_date: ''
@@ -155,13 +174,20 @@ export default function Products() {
     setNewProduct(defaultProduct);
   };
 
+  const lowStockCount = products.filter(p => p.current_stock <= p.min_stock_alert).length;
+
   const filteredProducts = [...products]
-    .filter(p => 
-      p.name.toLowerCase().includes(search.toLowerCase()) || 
-      p.category.toLowerCase().includes(search.toLowerCase()) ||
-      (p.unit && p.unit.toLowerCase().includes(search.toLowerCase())) ||
-      (p.barcode && p.barcode.includes(search))
-    )
+    .filter(p => {
+      if (filterLowStock && p.current_stock > p.min_stock_alert) {
+        return false;
+      }
+      return (
+        p.name.toLowerCase().includes(search.toLowerCase()) || 
+        p.category.toLowerCase().includes(search.toLowerCase()) ||
+        (p.unit && p.unit.toLowerCase().includes(search.toLowerCase())) ||
+        (p.barcode && p.barcode.includes(search))
+      );
+    })
     .sort((a, b) => {
       if (a.updated_at && b.updated_at) {
         return new Date(b.updated_at) - new Date(a.updated_at);
@@ -272,8 +298,8 @@ export default function Products() {
 
 
       <div className="card">
-        <div className="filters-panel">
-          <div className="topbar-search" style={{ margin: 0, width: '100%', maxWidth: '400px' }}>
+        <div className="filters-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <div className="topbar-search" style={{ margin: 0, width: '100%', maxWidth: '380px' }}>
             <Search size={18} color="var(--text-secondary)" />
             <input 
               type="text" 
@@ -281,6 +307,50 @@ export default function Products() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={toggleLowStockFilter}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                fontSize: '0.825rem',
+                padding: '0.45rem 0.85rem',
+                background: filterLowStock ? '#FFF7ED' : 'transparent',
+                borderColor: filterLowStock ? '#F59E0B' : 'var(--border-color)',
+                color: filterLowStock ? '#B45309' : 'var(--text-primary)',
+                fontWeight: filterLowStock ? 700 : 500,
+                cursor: 'pointer'
+              }}
+              title={filterLowStock ? "Click to show all products" : "Click to view low stock products only"}
+            >
+              <AlertCircle size={15} color={filterLowStock ? '#D97706' : 'var(--text-secondary)'} />
+              Low Stock Only ({lowStockCount})
+              {filterLowStock && (
+                <span 
+                  onClick={(e) => { e.stopPropagation(); toggleLowStockFilter(); }}
+                  style={{ marginLeft: '0.35rem', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem' }}
+                  title="Clear low stock filter"
+                >
+                  ✕
+                </span>
+              )}
+            </button>
+
+            {filterLowStock && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={toggleLowStockFilter}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+              >
+                Clear Filter
+              </button>
+            )}
           </div>
         </div>
 
@@ -360,8 +430,28 @@ export default function Products() {
               })}
               {filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                    No products found.
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                      <AlertCircle size={32} opacity={0.4} />
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                        {filterLowStock ? 'No Low Stock Products' : 'No Products Found'}
+                      </div>
+                      <div style={{ fontSize: '0.825rem' }}>
+                        {filterLowStock 
+                          ? 'All inventory items currently meet or exceed their minimum stock threshold.'
+                          : 'Try adjusting your search criteria.'}
+                      </div>
+                      {filterLowStock && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={toggleLowStockFilter}
+                          style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}
+                        >
+                          Show All Products
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { 
   Send, CheckCircle, FileText, Share2, Printer, MapPin, Tag, Package, 
@@ -9,6 +10,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { shareIssuedSlipToWhatsApp, formatIssuedSlipWhatsAppMessage, buildWhatsAppDesktopUrl } from '../utils/whatsapp';
 
 export default function DailyDistribution() {
+  const [searchParams] = useSearchParams();
+  const preselectedHawkerId = searchParams.get('hawker_id');
+
   const [hawkers, setHawkers] = useState([]);
   const [products, setProducts] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -19,7 +23,7 @@ export default function DailyDistribution() {
 
   const [dispatchData, setDispatchData] = useState({
     date: new Date().toISOString().split('T')[0],
-    hawker_id: '',
+    hawker_id: preselectedHawkerId ? parseInt(preselectedHawkerId) : '',
     route: '',
     product_id: '',
     dispatched_qty: ''
@@ -40,6 +44,17 @@ export default function DailyDistribution() {
       // Filter for today's dispatches
       const today = new Date().toISOString().split('T')[0];
       setLogs(logsRes.filter(log => log.date === today));
+
+      if (preselectedHawkerId) {
+        const selected = activeHawkers.find(h => String(h.id) === String(preselectedHawkerId)) || hawkersRes.find(h => String(h.id) === String(preselectedHawkerId));
+        if (selected) {
+          setDispatchData(prev => ({
+            ...prev,
+            hawker_id: selected.id,
+            route: selected.route || ''
+          }));
+        }
+      }
     } catch (e) {
       console.error(e);
     }
@@ -47,7 +62,20 @@ export default function DailyDistribution() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [preselectedHawkerId]);
+
+  useEffect(() => {
+    if (preselectedHawkerId && hawkers.length > 0) {
+      const selected = hawkers.find(h => String(h.id) === String(preselectedHawkerId));
+      if (selected) {
+        setDispatchData(prev => ({
+          ...prev,
+          hawker_id: selected.id,
+          route: selected.route || prev.route || ''
+        }));
+      }
+    }
+  }, [preselectedHawkerId, hawkers]);
 
   const handleHawkerChange = (hawkerId) => {
     if (!hawkerId) {
@@ -360,7 +388,7 @@ export default function DailyDistribution() {
                 Item Preview
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.875rem' }}>
-                <div><span style={{ color: 'var(--text-secondary)' }}>Hawker:</span> <strong>{currentHawker?.name || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-secondary)' }}>Hawker:</span> <strong>{currentHawker?.name || '-'}</strong>{currentHawker?.contact_info ? <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.35rem' }}>({currentHawker.contact_info})</span> : null}</div>
                 <div><span style={{ color: 'var(--text-secondary)' }}>Product:</span> <strong>{currentProduct?.name || '-'}</strong></div>
                 <div><span style={{ color: 'var(--text-secondary)' }}>Unit Price:</span> <strong>₹{unitPrice.toFixed(2)}</strong></div>
                 <div><span style={{ color: 'var(--text-secondary)' }}>Item Total:</span> <strong style={{ color: 'var(--accent-color)', fontSize: '0.95rem' }}>₹{totalValue.toFixed(2)}</strong></div>
@@ -407,9 +435,11 @@ export default function DailyDistribution() {
                 marginBottom: '1rem',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem'
               }}>
-                <span>Hawker: <strong>{currentHawker.name}</strong></span>
+                <span>Hawker: <strong>{currentHawker.name}</strong>{currentHawker.contact_info ? <span style={{ opacity: 0.85, marginLeft: '0.35rem' }}>({currentHawker.contact_info})</span> : null}</span>
                 <span>Route: <strong>{dispatchData.route || 'General'}</strong></span>
               </div>
             )}

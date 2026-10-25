@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { 
   Calculator, CheckSquare, AlertTriangle, FileText, AlertOctagon, 
@@ -8,6 +9,9 @@ import {
 import SearchableSelect from '../components/SearchableSelect';
 
 export default function EveningReturns() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const scopedHawkerId = searchParams.get('hawker_id');
+
   const [activeTab, setActiveTab] = useState('settlement'); // 'settlement' | 'hawker_log'
   
   const [pendingLogs, setPendingLogs] = useState([]);
@@ -17,7 +21,7 @@ export default function EveningReturns() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Hawker Log Tab Filters
-  const [selectedHawkerFilter, setSelectedHawkerFilter] = useState('ALL');
+  const [selectedHawkerFilter, setSelectedHawkerFilter] = useState(scopedHawkerId || 'ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [selectedDateFilter, setSelectedDateFilter] = useState('');
   
@@ -31,10 +35,12 @@ export default function EveningReturns() {
 
   const fetchData = async () => {
     try {
+      const logsUrl = scopedHawkerId ? `/logs/?hawker_id=${scopedHawkerId}` : '/logs/';
+      const hawkersUrl = scopedHawkerId ? `/hawkers/?hawker_id=${scopedHawkerId}` : '/hawkers/';
       const [hawkersRes, productsRes, logsRes] = await Promise.all([
-        api.get('/hawkers/'),
+        api.get(hawkersUrl),
         api.get('/products/'),
-        api.get('/logs/')
+        api.get(logsUrl)
       ]);
       setHawkers(hawkersRes);
       setProducts(productsRes);
@@ -52,7 +58,12 @@ export default function EveningReturns() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    if (scopedHawkerId) {
+      setSelectedHawkerFilter(scopedHawkerId);
+    } else {
+      setSelectedHawkerFilter('ALL');
+    }
+  }, [scopedHawkerId]);
 
   // Combine all logs
   const allLogs = [...pendingLogs, ...completedLogs];
@@ -78,6 +89,16 @@ export default function EveningReturns() {
       totalUnitsIssued
     };
   });
+
+  // Auto-select pending hawker group if scoped by URL param
+  useEffect(() => {
+    if (scopedHawkerId && pendingHawkerGroups.length > 0) {
+      const match = pendingHawkerGroups.find(g => String(g.hawkerId) === String(scopedHawkerId));
+      if (match && (!selectedHawkerGroup || String(selectedHawkerGroup.hawkerId) !== String(scopedHawkerId))) {
+        handleSelectHawkerGroup(match);
+      }
+    }
+  }, [scopedHawkerId, pendingLogs, hawkers]);
 
   // Handle Select Hawker Group for Settlement
   const handleSelectHawkerGroup = (group) => {
@@ -272,6 +293,41 @@ export default function EveningReturns() {
         </div>
       </div>
 
+      {/* SCOPED HAWKER INDICATOR BANNER */}
+      {scopedHawkerId && (
+        <div style={{
+          background: 'rgba(45, 212, 191, 0.12)',
+          border: '1.5px solid var(--accent-color)',
+          borderRadius: '12px',
+          padding: '0.85rem 1.25rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <User size={22} color="var(--accent-color)" />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Scoped to Hawker: {hawkers.find(h => String(h.id) === String(scopedHawkerId))?.name || `Hawker #${scopedHawkerId}`}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                Showing only pending settlements, amounts, and activity records for this hawker.
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+            onClick={() => setSearchParams({})}
+          >
+            <X size={14} style={{ marginRight: '4px' }} /> View All Hawkers
+          </button>
+        </div>
+      )}
+
       {/* TOP TAB NAVIGATION */}
       <div style={{ 
         display: 'flex', 
@@ -380,6 +436,11 @@ export default function EveningReturns() {
                             </div>
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
                               <MapPin size={12} color="var(--accent-color)" /> {group.route} | Date: {group.date}
+                              {(() => {
+                                const hObj = hawkers.find(h => h.id === group.hawkerId);
+                                const bal = Math.abs(hObj?.balance || 0);
+                                return bal > 0 ? <span style={{ color: 'var(--coral-red)', fontWeight: 700, marginLeft: '0.35rem' }}>| Bal: ₹{bal.toFixed(2)}</span> : null;
+                              })()}
                             </div>
                           </div>
 
@@ -450,6 +511,18 @@ export default function EveningReturns() {
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Hawker Name:</span>
                     <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedHawkerGroup.hawkerName}</div>
                   </div>
+                  {(() => {
+                    const hObj = hawkers.find(h => h.id === selectedHawkerGroup.hawkerId);
+                    const bal = Math.abs(hObj?.balance || 0);
+                    return (
+                      <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Account Balance:</span>
+                        <div style={{ fontWeight: 800, fontSize: '1.05rem', color: hObj?.balance < 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
+                          ₹{bal.toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Route / Date:</span>
                     <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{selectedHawkerGroup.route} ({selectedHawkerGroup.date})</div>
@@ -677,12 +750,21 @@ export default function EveningReturns() {
               <select 
                 value={selectedHawkerFilter} 
                 onChange={e => setSelectedHawkerFilter(e.target.value)}
-                style={{ backgroundColor: '#FFFFFF' }}
+                style={{ backgroundColor: scopedHawkerId ? '#F1F5F9' : '#FFFFFF', cursor: scopedHawkerId ? 'not-allowed' : 'default' }}
+                disabled={!!scopedHawkerId}
               >
-                <option value="ALL">-- All Hawkers ({hawkers.length}) --</option>
-                {hawkers.map(h => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
-                ))}
+                {scopedHawkerId ? (
+                  <option value={scopedHawkerId}>
+                    {hawkers.find(h => String(h.id) === String(scopedHawkerId))?.name || `Hawker #${scopedHawkerId}`} (Locked)
+                  </option>
+                ) : (
+                  <>
+                    <option value="ALL">-- All Hawkers ({hawkers.length}) --</option>
+                    {hawkers.map(h => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
 
@@ -766,9 +848,9 @@ export default function EveningReturns() {
               <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success-color)' }}>₹{logStats.cashCollected.toFixed(2)}</div>
             </div>
             <div style={{ background: '#FFFFFF', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Balance Diff</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Unsettled Balance</div>
               <div style={{ fontSize: '1.1rem', fontWeight: 800, color: logOutstanding > 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
-                ₹{logOutstanding.toFixed(2)}
+                ₹{Math.max(0, logOutstanding).toFixed(2)}
               </div>
             </div>
           </div>

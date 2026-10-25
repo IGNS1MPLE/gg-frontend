@@ -283,7 +283,7 @@ export default function Hawkers() {
                         )}
                       </td>
                       <td style={{ fontWeight: 800 }} className={hawker.balance < 0 ? 'text-danger' : (hawker.balance > 0 ? 'text-success' : '')}>
-                        ₹{hawker.balance.toFixed(2)}
+                        ₹{Math.abs(hawker.balance || 0).toFixed(2)}
                       </td>
                       <td onClick={e => e.stopPropagation()}>
                         <button 
@@ -321,10 +321,10 @@ export default function Hawkers() {
                               </div>
 
                               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <Link to="/distribution" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
+                                <Link to={`/distribution?hawker_id=${hawker.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
                                   <Package size={14} /> Issue Stock
                                 </Link>
-                                <Link to="/returns" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
+                                <Link to={`/returns?hawker_id=${hawker.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
                                   <RotateCcw size={14} /> Process Settlement
                                 </Link>
                               </div>
@@ -365,7 +365,7 @@ export default function Hawkers() {
                               <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Account Balance</div>
                                 <div style={{ fontSize: '1.1rem', fontWeight: 800, color: hawker.balance < 0 ? 'var(--coral-red)' : 'var(--success-color)' }}>
-                                  ₹{hawker.balance.toFixed(2)}
+                                  ₹{Math.abs(hawker.balance || 0).toFixed(2)}
                                 </div>
                               </div>
                             </div>
